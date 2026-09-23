@@ -184,6 +184,19 @@ def test_delete_removes_lecture_files_without_touching_other_lectures(client):
     assert client.get(f"/api/lectures/{second['id']}").status_code == 200
 
 
+@pytest.mark.parametrize("api_key", ["", "test-fixture"])
+def test_finish_recording_without_key_queues_local_transcription_only(client, api_key):
+    client.app.state.settings.api_key = api_key
+    live = client.post("/api/live", json={"title": "Local recording"}).json()
+    repo = client.app.state.repo
+    repo.add_chunk(live["id"], 0, {"sequence": 0, "path": "saved.wav"})
+    response = client.post(f"/api/live/{live['id']}/finish")
+    assert response.status_code == 200
+    job = response.json()["job"]
+    assert job["live_finish"] is True
+    assert job["transcribe_only"] is (not bool(api_key))
+
+
 def test_resume_interrupted_recording_assembles_audio_even_with_live_transcript(client):
     lecture = imported(client).json()
     repo = client.app.state.repo

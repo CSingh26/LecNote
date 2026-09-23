@@ -1,6 +1,7 @@
 """Local enrichment behavior; only optional inference/OS boundaries are replaced."""
 
 import importlib
+import os
 import struct
 import subprocess
 import sys
@@ -137,6 +138,7 @@ def test_speaker_assignment_rejects_invalid_timestamps(enrichment, start, end):
 
 @pytest.mark.parametrize("modern", [False, True])
 def test_diarization_adapts_real_pyannote_result_shapes(enrichment, monkeypatch, tmp_path, modern):
+    monkeypatch.delenv("PYANNOTE_METRICS_ENABLED", raising=False)
     source = write_wav(tmp_path / "lecture.wav")
     calls = []
 
@@ -146,6 +148,7 @@ def test_diarization_adapts_real_pyannote_result_shapes(enrichment, monkeypatch,
             yield types.SimpleNamespace(start=0.0, end=2.0), "track", "SPEAKER_07"
 
     def infer(path):
+        assert os.environ.get("PYANNOTE_METRICS_ENABLED") == "0"
         calls.append(path)
         return types.SimpleNamespace(speaker_diarization=Annotation()) if modern else Annotation()
 

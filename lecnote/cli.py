@@ -21,7 +21,11 @@ async def process(args, settings):
                 lecture_id = args.resume
                 response = await client.post(
                     f"/api/lectures/{lecture_id}/process",
-                    json={"force": args.force, "diarize": args.speakers},
+                    json={
+                        "force": args.force,
+                        "diarize": args.speakers,
+                        "transcribe_only": args.transcribe_only,
+                    },
                 )
             else:
                 if not args.file or not args.file.is_file():
@@ -57,7 +61,11 @@ async def process(args, settings):
                     return
                 response = await client.post(
                     f"/api/lectures/{lecture_id}/process",
-                    json={"force": args.force, "diarize": args.speakers},
+                    json={
+                        "force": args.force,
+                        "diarize": args.speakers,
+                        "transcribe_only": args.transcribe_only,
+                    },
                 )
             response.raise_for_status()
             previous = None
@@ -75,7 +83,7 @@ async def process(args, settings):
                         from .exports import export_notes
 
                         folder = settings.lecture_dir(lecture_id) / "exports"
-                        for kind in ("md", "html", "pdf", "json"):
+                        for kind in ("md", "html", "pdf", "json") if lecture.get("notes") else ("json",):
                             print(export_notes(lecture, kind, folder))
                         return
                     if job["status"] in {"failed", "cancelled", "interrupted"}:
@@ -105,6 +113,7 @@ def main(argv=None):
     run.add_argument("--force", action="store_true", help="Regenerate notes")
     run.add_argument("--speakers", action="store_true", help="Run local speaker detection")
     run.add_argument("--no-process", action="store_true", help="Import without generating notes")
+    run.add_argument("--transcribe-only", action="store_true", help="Transcribe locally without using OpenAI")
     args = parser.parse_args(argv)
     settings = Settings.load(args.data_dir)
     try:

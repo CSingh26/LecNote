@@ -15,11 +15,14 @@ bash run.sh
 Open [LecNote](http://127.0.0.1:8765). Use `bash run.sh 8766` if the default port
 is busy. Add an OpenAI API key in Settings to generate notes. Keys stay in local,
 ignored configuration and are never returned to the browser after saving.
-The base Whisper model has been downloaded during development.
+The base Whisper model and optional speaker-detection dependencies are installed
+on this laptop. Speaker detection still needs model access and a Hugging Face token.
 
 The library starts empty. Create a course, import a lecture, or start a recording.
 Transcript-only imports also work. Local transcription is saved even if OpenAI
 generation fails, so the transcript can be reviewed and the job resumed later.
+Stopping a live recording without an OpenAI key saves its local transcript;
+generate notes later after adding a key.
 
 ## Install on another machine
 
@@ -40,6 +43,8 @@ On Windows, use `.venv\Scripts\python.exe` and `.venv\Scripts\lecnote.exe`.
 `requirements.lock` records the tested Python package versions; `web/package-lock.json`
 locks the frontend dependencies. macOS is verified; Windows/Linux code paths
 are implemented but have not been exercised on those operating systems.
+`requirements-speakers.lock` records the tested environment including the
+optional speaker-detection dependencies.
 
 For frontend development, run the Python server on port 8765 and
 `npm --prefix web run dev` in another terminal. Vite forwards `/api` to the local
@@ -107,6 +112,7 @@ use the `tesseract` executable if installed. No images are sent to OpenAI.
 ```sh
 .venv/bin/lecnote check
 .venv/bin/lecnote process lecture.m4a --title "Lecture 1"
+.venv/bin/lecnote process lecture.m4a --transcribe-only
 .venv/bin/lecnote process transcript.json --title "Lecture 2" --no-process
 .venv/bin/lecnote process --resume LECTURE_ID
 .venv/bin/lecnote --data-dir ./another-library serve --port 8766
@@ -143,6 +149,7 @@ Tests use temporary local libraries and fake only external inference boundaries.
 They never make paid OpenAI calls. Real local Whisper and Apple Vision smoke
 checks were also performed. An actual OpenAI generation run still needs a user
 API key; no live OpenAI call is claimed as tested.
+See [the verification record](docs/verification.md) for test scope and browser checks.
 
 ## Build milestones
 

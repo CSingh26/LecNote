@@ -66,7 +66,8 @@ x_label:string,y_label:string,image:string|null}`.
   `sequence` nonnegative integer, `offset` seconds -> `{accepted:true}`.
   Queue local transcription without blocking request. GET lecture includes segments.
 - POST `/live/{id}/finish` -> Lecture; combines WAV chunks in sequence order,
-  queues full pipeline after outstanding live chunks finish.
+  queues full pipeline after outstanding live chunks finish. Without a configured
+  OpenAI key, saves local transcription only; notes can be generated later.
 
 ## Python boundaries
 

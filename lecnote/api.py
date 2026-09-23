@@ -605,7 +605,12 @@ def create_app(settings: Settings | None = None, start_worker=True):
             if not chunks:
                 repo.update("lectures", lecture_id, {"status": "draft", "error": "No audio was recorded"})
                 raise HTTPException(422, "No audio was recorded")
-            manager.enqueue(lecture_id, diarize=settings.diarization, live_finish=True)
+            manager.enqueue(
+                lecture_id,
+                diarize=settings.diarization,
+                live_finish=True,
+                transcribe_only=not bool(settings.api_key),
+            )
             return public_lecture(get_lecture(lecture_id))
 
     web = Path(__file__).resolve().parent.parent / "web" / "dist"

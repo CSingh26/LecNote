@@ -58,12 +58,16 @@ on a free loopback port and provide its URL.
 
 ## Progress
 
-- Design and interfaces recorded; implementation starting.
+- Design and interfaces recorded; all six implementation tasks completed.
 - User's existing approval supersedes repeated skill approval gates.
 - Local feature branch is used in place; repository began with documentation only.
-- Backend, pipeline, enrichment, export and CLI implementation complete: 152 Python tests passed.
+- Backend, pipeline, enrichment, export and CLI implementation complete: 155 Python tests passed.
 - Real local Whisper inference and macOS Vision OCR verified; no OpenAI credentials available.
 - Review findings addressed with regression coverage: live cancellation/edit race,
   timestamp overrun, shared transcript constraints, Markdown TeX and CJK PDF text.
 - Library process lock prevents competing CLI/server workers. Local-only transcription
-  is an explicit processing mode. Web UI browser verification is in progress.
+  is an explicit processing mode, including recording completion without an OpenAI key.
+- Web UI complete: 20 unit tests, two fixture browser tests, TypeScript and production build passed.
+- Real-backend browser workflows and synthetic microphone/local Whisper recording passed.
+- Desktop/mobile screenshot inspection completed; diagram label rendering fixed and tested.
+- Exact verification boundaries and remaining credential setup are recorded in `docs/verification.md`.

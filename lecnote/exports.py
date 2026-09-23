@@ -395,7 +395,7 @@ def _html(lecture):
         bundle = re.sub(r"</script", r"<\\/script", bundle, flags=re.I)
         scripts = f'<script nonce="{nonce}">{bundle}</script>'
         scripts += f'''<script nonce="{nonce}">
-mermaid.initialize({{startOnLoad:false,securityLevel:'strict',maxTextSize:8000,maxEdges:60,
+mermaid.initialize({{startOnLoad:false,securityLevel:'strict',htmlLabels:false,maxTextSize:8000,maxEdges:60,
   flowchart:{{htmlLabels:false}},fontFamily:'Arial, sans-serif'}});
 document.querySelectorAll('pre.mermaid').forEach(async (node) => {{
   try {{ await mermaid.run({{nodes:[node]}});

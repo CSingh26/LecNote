@@ -206,6 +206,7 @@ def diarize_segments(path: Path, segments: list[dict], token: str) -> list[dict]
         return []
     if not token or not token.strip():
         raise RuntimeError("Local diarization requires a Hugging Face token. Add it in Settings and retry.")
+    os.environ["PYANNOTE_METRICS_ENABLED"] = "0"
     try:
         from pyannote.audio import Pipeline
     except (ImportError, OSError, RuntimeError):
