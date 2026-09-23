@@ -1,15 +1,161 @@
 # LecNote
 
-LecNote is a new project. Its purpose, feature scope, and technology choices will be documented here once agreed.
+A local lecture library with Whisper transcription, OpenAI study notes, and a
+browser workspace. The combined MVP/v1/v2 implementation includes courses,
+recording imports, live microphone capture, timestamp-linked playback,
+transcript correction, local slide/whiteboard extraction, review questions,
+search, course glossary, resumable jobs, and Markdown/HTML/PDF/JSON exports.
 
-## Milestones
+## Run on this laptop
 
-1. **Repository foundation:** initialize Git, create the private GitHub repository, and push the initial project documentation.
-2. **Product definition:** agree on the intended users, core workflow, and first release scope.
-3. **Implementation:** deliver the agreed features in independently verifiable milestones.
+```sh
+bash run.sh
+```
 
-Each completed milestone is verified, committed, and pushed to GitHub.
+Open [LecNote](http://127.0.0.1:8765). Use `bash run.sh 8766` if the default port
+is busy. Add an OpenAI API key in Settings to generate notes. Keys stay in local,
+ignored configuration and are never returned to the browser after saving.
+The base Whisper model and optional speaker-detection dependencies are installed
+on this laptop. Speaker detection still needs model access and a Hugging Face token.
 
-## Current state
+The library starts empty. Create a course, import a lecture, or start a recording.
+Transcript-only imports also work. Local transcription is saved even if OpenAI
+generation fails, so the transcript can be reviewed and the job resumed later.
+Stopping a live recording without an OpenAI key saves its local transcript;
+generate notes later after adding a key.
 
-This repository contains project documentation only. Application setup and run instructions will be added with the first implementation milestone.
+## Install on another machine
+
+Requires Python 3.11-3.13 and Node.js 20.19+ or 22+. Python 3.14 is not supported
+by this project's dependency range. FFmpeg is useful for additional media
+formats and optional speaker detection. Core Whisper decoding uses PyAV.
+
+```sh
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e '.[dev]'
+npm --prefix web ci
+npm --prefix web run build
+.venv/bin/lecnote download-model --model base
+.venv/bin/lecnote serve
+```
+
+On Windows, use `.venv\Scripts\python.exe` and `.venv\Scripts\lecnote.exe`.
+`requirements.lock` records the tested Python package versions; `web/package-lock.json`
+locks the frontend dependencies. macOS is verified; Windows/Linux code paths
+are implemented but have not been exercised on those operating systems.
+`requirements-speakers.lock` records the tested environment including the
+optional speaker-detection dependencies.
+
+For frontend development, run the Python server on port 8765 and
+`npm --prefix web run dev` in another terminal. Vite forwards `/api` to the local
+server. The production build is served directly by Python without Node running.
+
+## Features and limits
+
+| Area | Behavior |
+| --- | --- |
+| Local Whisper | CPU int8, timestamped segments, vocabulary hints, selectable model and language |
+| Notes | Overview, takeaways, cited key points, definitions, LaTeX formulas, professor examples, emphasis, labeled generated practice |
+| Visuals | Validated Mermaid and numeric plots; no generated Python execution |
+| Courses | Context and vocabulary, lecture organization, glossary |
+| Live recording | Independent mono WAV chunks, local transcription, saved full recording, normal note generation after stopping |
+| Materials | Local text/PDF extraction and image OCR; original files remain local |
+| Recovery | Completed transcription and note chunks cached; failed/cancelled/interrupted jobs can resume |
+| Exports | Markdown, standalone HTML, PDF, and JSON; includes personal annotations |
+| Usage | Input/output token counts, optional estimates from user-supplied per-million prices |
+
+The default note model is `gpt-4.1-mini`; choose another Responses-compatible
+Structured Outputs model in Settings or `LN_MODEL`. Approximately eight-minute
+chunks generate up to four at a time; only one lecture pipeline runs at once.
+Changing source text, context, model, prompt, or chunk settings invalidates
+dependent caches. Force regeneration makes new note requests and may cost more.
+Completed cache usage describes the saved notes, not an account billing ledger.
+
+Live transcription is near-live, not word-by-word streaming. Its latency depends
+on recording length and laptop speed. The browser must remain open while
+recording; saved chunks survive a backend restart. Microphone access begins only
+after pressing Record. A single worker owns each library, so stop the Web UI
+server before running processing through the CLI against the same library.
+
+Recordings can be up to 4 GiB, materials up to 30 MiB. Combined lecture/course/
+attachment context currently has a 24,000-character limit for note generation.
+Use relevant excerpts for longer material. Image-only PDFs need their pages
+attached as images for OCR. Complex Mermaid forms retain their source if the
+PDF raster fallback cannot render them. Standalone HTML uses the locally
+installed Mermaid bundle; install frontend dependencies for interactive diagrams.
+
+Whisper can mishear numbers and terminology, especially with smaller models.
+Review important formulas against the recording. Transcript text and speaker
+labels can be corrected before regenerating notes. Personal annotations are
+saved separately so regeneration does not overwrite them.
+
+## Optional speaker detection and OCR
+
+```sh
+.venv/bin/python -m pip install -e '.[speakers]'
+```
+
+Automatic speaker detection needs pyannote, FFmpeg, a Hugging Face token, and
+accepted access conditions for
+[speaker-diarization-community-1](https://huggingface.co/pyannote/speaker-diarization-community-1).
+For pyannote 3.x the adapter uses speaker-diarization-3.1 and segmentation-3.0.
+Enable detection and set the token in Settings. Model weights download once;
+inference runs locally. This optional model integration has not been exercised
+with real model credentials during development. Manual speaker labels work
+without this dependency.
+
+macOS image OCR uses Apple Vision with Xcode Command Line Tools. Other systems
+use the `tesseract` executable if installed. No images are sent to OpenAI.
+
+## CLI
+
+```sh
+.venv/bin/lecnote check
+.venv/bin/lecnote process lecture.m4a --title "Lecture 1"
+.venv/bin/lecnote process lecture.m4a --transcribe-only
+.venv/bin/lecnote process transcript.json --title "Lecture 2" --no-process
+.venv/bin/lecnote process --resume LECTURE_ID
+.venv/bin/lecnote --data-dir ./another-library serve --port 8766
+```
+
+Transcript JSON has `language`, `duration`, and `segments`. Each segment has an
+integer `id`, `start`/`end` seconds, `text`, and optional `speaker`. An example is
+in `examples/transcript.json`. CLI commands use the same local services and
+cache as the Web UI. The API contract is in `docs/api-contract.md`.
+
+## Local data and privacy
+
+`data/library.sqlite3` stores the library and jobs. `data/lectures/<id>/` holds
+source files, transcripts, content-keyed caches, generated assets, and exports.
+`data/settings.json` stores settings with owner-only file permissions on macOS
+and Linux. Keep your library backed up; none of it is committed to Git.
+Settings can also begin from the variables listed in `.env.example`.
+
+The server binds to loopback. Audio/video, PDFs and images stay on the laptop.
+Only transcript and extracted context text go to OpenAI. Requests set
+`store=False`; that disables response storage, not all provider-side retention.
+See [OpenAI's Responses guidance](https://developers.openai.com/api/docs/guides/migrate-to-responses).
+
+## Verification
+
+```sh
+.venv/bin/python -m pytest -q
+.venv/bin/ruff check lecnote tests
+npm --prefix web test
+npm --prefix web run build
+```
+
+Tests use temporary local libraries and fake only external inference boundaries.
+They never make paid OpenAI calls. Real local Whisper and Apple Vision smoke
+checks were also performed. An actual OpenAI generation run still needs a user
+API key; no live OpenAI call is claimed as tested.
+See [the verification record](docs/verification.md) for test scope and browser checks.
+
+## Build milestones
+
+1. Product design, architecture, API contract and dependency foundation.
+2. Local library, processing, enrichment, exports and CLI.
+3. Complete Web UI and browser integration verification.
+
+Verified milestones are committed and pushed to the configured GitHub remote.
+Design and implementation records live in `docs/superpowers/`.

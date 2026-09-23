@@ -1,0 +1,27 @@
+{
+  "language": "en",
+  "duration": 45,
+  "segments": [
+    {
+      "id": 0,
+      "start": 0,
+      "end": 15,
+      "text": "Today we will study kinetic energy. Kinetic energy is one half times mass times velocity squared.",
+      "speaker": "Professor"
+    },
+    {
+      "id": 1,
+      "start": 15,
+      "end": 30,
+      "text": "For a two kilogram object moving at three meters per second, the kinetic energy is nine joules.",
+      "speaker": "Professor"
+    },
+    {
+      "id": 2,
+      "start": 30,
+      "end": 45,
+      "text": "Remember that doubling the speed multiplies kinetic energy by four, because speed is squared.",
+      "speaker": "Professor"
+    }
+  ]
+}
