@@ -5,6 +5,7 @@ import {
   FileAudio,
   FileText,
   Library as LibraryIcon,
+  Mic,
   Plus,
   Search,
   Upload,
@@ -52,13 +53,16 @@ export function Library({
             <Button icon={Upload} onClick={() => onNew("transcript")}>
               Import transcript
             </Button>
-            <Button
-              variant="primary"
-              icon={Plus}
-              onClick={() => onNew("upload")}
-            >
+            <Button icon={Plus} onClick={() => onNew("upload")}>
               New lecture
             </Button>
+            <a
+              className="button primary"
+              href={`#/record${course ? `?course=${encodeURIComponent(course)}` : ""}`}
+            >
+              <Mic size={16} aria-hidden="true" />
+              Record lecture
+            </a>
           </>
         }
       />

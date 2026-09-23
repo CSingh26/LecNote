@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { api, downloadBlob, json, message } from "./api";
 import { encodeWav, SerialChunkQueue } from "./audio";
+import { captureInputs, type RecordingSource } from "./capture";
 import captureWorkletUrl from "./pcm-capture.js?url&no-inline";
 
 type Phase =
@@ -15,6 +16,7 @@ type RecordingState = {
   error: string;
   signal: number[];
   hasAudio: boolean;
+  source: RecordingSource;
 };
 const idle: RecordingState = {
   phase: "idle",
@@ -26,13 +28,14 @@ const idle: RecordingState = {
   error: "",
   signal: [],
   hasAudio: false,
+  source: "microphone",
 };
 
 export class RecorderController {
   private state: RecordingState = idle;
   private listeners = new Set<() => void>();
   private context: AudioContext | null = null;
-  private stream: MediaStream | null = null;
+  private streams: MediaStream[] = [];
   private node: AudioWorkletNode | null = null;
   private queue: SerialChunkQueue | null = null;
   private retained: ArrayBuffer[] = [];
@@ -55,25 +58,40 @@ export class RecorderController {
       this.state.phase,
     );
   }
-  async start(title: string, course_id: string, language: string) {
+  async start(
+    title: string,
+    course_id: string,
+    language: string,
+    context = "",
+    source: RecordingSource = "microphone",
+  ) {
     if (this.protected) return;
     this.retained = [];
     this.captured = 0;
-    this.update({ ...idle, phase: "requesting", title });
+    this.update({ ...idle, phase: "requesting", title, source });
     try {
-      if (!navigator.mediaDevices?.getUserMedia)
-        throw new Error(
-          "Microphone capture requires localhost or HTTPS and a browser with microphone support.",
-        );
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-        },
-        video: false,
-      });
       this.context = new AudioContext({ sampleRate: 48000 });
+      // Resume during the click gesture, before waiting for either permission picker.
+      const resumed = this.context.resume();
+      void resumed.catch(() => {});
+      this.streams = await captureInputs(source);
+      let inputEnded = false;
+      const tracks = this.streams.flatMap((stream) => stream.getTracks());
+      const requireLiveInputs = () => {
+        if (inputEnded || tracks.some((track) => track.readyState !== "live"))
+          throw new Error(
+            "Audio sharing ended before recording started. Start again to select your sources.",
+          );
+      };
+      tracks.forEach((track) =>
+        track.addEventListener("ended", () => {
+          inputEnded = true;
+          if (this.state.phase === "recording") void this.stop();
+          else tracks.forEach((input) => input.stop());
+        }),
+      );
+      await resumed;
+      requireLiveInputs();
       this.rate = this.context.sampleRate;
       if (this.rate < 8000 || this.rate > 96000)
         throw new Error(
@@ -81,11 +99,18 @@ export class RecorderController {
         );
       await this.context.audioWorklet.addModule(captureWorkletUrl);
       await this.context.resume();
+      requireLiveInputs();
       const session = await api<{ id: string; lecture_id: string }>(
         "/live",
-        json("POST", { title, course_id: course_id || null, language }),
+        json("POST", {
+          title,
+          course_id: course_id || null,
+          language,
+          context,
+        }),
       );
       this.update({ lectureId: session.lecture_id });
+      requireLiveInputs();
       this.queue = new SerialChunkQueue(
         async (chunk) => {
           const form = new FormData();
@@ -141,25 +166,36 @@ export class RecorderController {
       };
       const mute = this.context.createGain();
       mute.gain.value = 0;
-      this.context.createMediaStreamSource(this.stream).connect(this.node);
+      for (const stream of this.streams) {
+        const gain = this.context.createGain();
+        gain.gain.value = 1 / this.streams.length;
+        // The shared display's video track is never connected, encoded, or uploaded.
+        this.context.createMediaStreamSource(stream).connect(gain);
+        gain.connect(this.node);
+      }
       this.node.connect(mute);
       mute.connect(this.context.destination);
-      this.stream.getAudioTracks().forEach((track) =>
-        track.addEventListener("ended", () => {
-          if (this.state.phase === "recording") void this.stop();
-        }),
-      );
       this.update({ phase: "recording" });
     } catch (error) {
       await this.release();
-      this.update({ phase: "idle", error: message(error) });
+      let detail = message(error);
+      if (this.state.lectureId) {
+        try {
+          await api(`/lectures/${this.state.lectureId}/cancel`, json("POST"));
+        } catch (cleanupError) {
+          detail += ` The empty recording session could not be closed: ${message(cleanupError)}`;
+        }
+      }
+      this.update({ phase: "idle", error: detail });
     }
   }
   private async release() {
     this.node?.disconnect();
     this.node = null;
-    this.stream?.getTracks().forEach((track) => track.stop());
-    this.stream = null;
+    this.streams.forEach((stream) =>
+      stream.getTracks().forEach((track) => track.stop()),
+    );
+    this.streams = [];
     await this.context?.close().catch(() => {});
     this.context = null;
   }

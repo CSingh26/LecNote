@@ -61,7 +61,8 @@ x_label:string,y_label:string,image:string|null}`.
 - PUT `/settings` same configurable fields plus optional `api_key` and `hf_token`;
   omit secrets to retain; empty string clears saved secret. Never returns secrets.
 - POST `/settings/check` -> `{ok:bool,message:string}` (local configuration only).
-- POST `/live` JSON `{title,course_id?,language?}` -> `{id,lecture_id}` (same IDs).
+- POST `/live` JSON `{title,course_id?,language?,context?}` -> `{id,lecture_id}` (same IDs).
+  Audio sources are mixed locally in the browser; video is not uploaded.
 - POST `/live/{id}/chunks` multipart `file` independent mono PCM16 WAV,
   `sequence` nonnegative integer, `offset` seconds -> `{accepted:true}`.
   Queue local transcription without blocking request. GET lecture includes segments.

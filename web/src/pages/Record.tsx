@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { AudioLines, Download, Mic, RotateCcw, Square } from "lucide-react";
-import type { Course, Lecture, Settings } from "../types";
+import {
+  AudioLines,
+  Download,
+  Mic,
+  Monitor,
+  RotateCcw,
+  Square,
+} from "lucide-react";
+import type { Course, Lecture, RecordingDraft, Settings } from "../types";
 import { time, useResource } from "../lib/api";
 import { recorder, useRecorder } from "../lib/recorder";
+import type { RecordingSource } from "../lib/capture";
 import {
   Button,
   CourseSelect,
@@ -55,7 +63,7 @@ function Waveform({ signal }: { signal: number[] }) {
     <canvas
       ref={ref}
       className="waveform"
-      aria-label="Live microphone waveform"
+      aria-label="Live recording waveform"
       role="img"
     />
   );
@@ -63,14 +71,26 @@ function Waveform({ signal }: { signal: number[] }) {
 export function Record({
   courses,
   settings,
+  initialDraft,
+  initialCourse = "",
 }: {
   courses: Course[];
   settings?: Settings;
+  initialDraft?: RecordingDraft;
+  initialCourse?: string;
 }) {
   const state = useRecorder();
-  const [title, setTitle] = useState("");
-  const [course, setCourse] = useState("");
-  const [language, setLanguage] = useState(settings?.language ?? "");
+  const [title, setTitle] = useState(
+    recorder.protected ? state.title : (initialDraft?.title ?? state.title),
+  );
+  const [course, setCourse] = useState(
+    initialCourse || initialDraft?.course_id || "",
+  );
+  const [language, setLanguage] = useState(
+    initialDraft?.language ?? settings?.language ?? "",
+  );
+  const [context, setContext] = useState(initialDraft?.context ?? "");
+  const [source, setSource] = useState<RecordingSource>(state.source);
   const lecture = useResource<Lecture>(
     state.lectureId ? `/lectures/${state.lectureId}` : null,
     2500,
@@ -83,7 +103,13 @@ export function Record({
       <div className="record-layout">
         <section className="record-console">
           <div className="split">
-            <span className="eyebrow">MICROPHONE</span>
+            <span className="eyebrow">
+              {source === "both"
+                ? "MICROPHONE + LECTURE"
+                : source === "lecture"
+                  ? "LECTURE AUDIO"
+                  : "MICROPHONE"}
+            </span>
             <span
               className={`record-state ${state.phase === "recording" ? "is-live" : ""}`}
             >
@@ -104,10 +130,46 @@ export function Record({
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              void recorder.start(title.trim(), course, language);
+              void recorder.start(
+                title.trim(),
+                course,
+                language,
+                context,
+                source,
+              );
             }}
           >
             <fieldset disabled={active}>
+              <div className="field">
+                <span id="record-source-label">Audio source</span>
+                <div
+                  className="segmented recording-sources"
+                  role="group"
+                  aria-labelledby="record-source-label"
+                >
+                  <Button
+                    icon={Mic}
+                    aria-pressed={source === "microphone"}
+                    onClick={() => setSource("microphone")}
+                  >
+                    Microphone
+                  </Button>
+                  <Button
+                    icon={Monitor}
+                    aria-pressed={source === "lecture"}
+                    onClick={() => setSource("lecture")}
+                  >
+                    Lecture audio
+                  </Button>
+                  <Button
+                    icon={AudioLines}
+                    aria-pressed={source === "both"}
+                    onClick={() => setSource("both")}
+                  >
+                    Both
+                  </Button>
+                </div>
+              </div>
               <Field label="Recording title">
                 <input
                   required
@@ -133,6 +195,14 @@ export function Record({
                   />
                 </Field>
               </div>
+              <Field label="Lecture context">
+                <textarea
+                  rows={2}
+                  maxLength={100000}
+                  value={context}
+                  onChange={(event) => setContext(event.target.value)}
+                />
+              </Field>
             </fieldset>
             <div className="record-actions">
               {!active ? (
@@ -152,7 +222,7 @@ export function Record({
               ) : (
                 <Button disabled>
                   {state.phase === "requesting"
-                    ? "Waiting for microphone…"
+                    ? "Waiting for audio access…"
                     : state.phase === "blocked"
                       ? "Recording retained"
                       : "Saving final audio…"}
@@ -161,8 +231,9 @@ export function Record({
             </div>
           </form>
           <p className="muted small">
-            Microphone access starts only when you press Record. You can move
-            around this workspace while recording; keep this browser tab open.
+            Audio capture starts only after you grant access. Only audio is
+            saved; shared video is not recorded. Keep this tab open until saving
+            finishes.
           </p>
           {!settings?.api_key_configured && (
             <div className="notice warning">

@@ -79,6 +79,14 @@ class JobManager:
         with self.lock:
             job = self.active(lecture_id)
             if not job:
+                lecture = self.repo.get("lectures", lecture_id)
+                if lecture and lecture["status"] == "recording":
+                    self.repo.update(
+                        "lectures",
+                        lecture_id,
+                        {"status": "cancelled", "live_epoch": lecture.get("live_epoch", 0) + 1},
+                    )
+                    return {"status": "cancelled"}
                 return self.latest(lecture_id)
             self.cancelled.add(job["id"])
             lecture = self.repo.get("lectures", lecture_id)

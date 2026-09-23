@@ -58,7 +58,7 @@ server. The production build is served directly by Python without Node running.
 | Notes | Overview, takeaways, cited key points, definitions, LaTeX formulas, professor examples, emphasis, labeled generated practice |
 | Visuals | Validated Mermaid and numeric plots; no generated Python execution |
 | Courses | Context and vocabulary, lecture organization, glossary |
-| Live recording | Independent mono WAV chunks, local transcription, saved full recording, normal note generation after stopping |
+| Live recording | Microphone, shared lecture audio, or both mixed together; local transcription and saved full WAV recording |
 | Materials | Local text/PDF extraction and image OCR; original files remain local |
 | Recovery | Completed transcription and note chunks cached; failed/cancelled/interrupted jobs can resume |
 | Exports | Markdown, standalone HTML, PDF, and JSON; includes personal annotations |
@@ -76,6 +76,25 @@ on recording length and laptop speed. The browser must remain open while
 recording; saved chunks survive a backend restart. Microphone access begins only
 after pressing Record. A single worker owns each library, so stop the Web UI
 server before running processing through the CLI against the same library.
+
+### Record a lecture
+
+Choose **Record lecture** in the Library, or **New lecture > Record live**.
+Enter the title, select **Microphone**, **Lecture audio**, or **Both**, then
+press **Start recording**. Stop & save preserves the WAV recording and queues
+local transcription; an OpenAI key is needed only for the generated notes.
+
+For online lectures, open LecNote in desktop Chrome or Edge, select the lecture
+tab in the browser's sharing picker, and enable tab audio. Audio from other apps
+or the entire system is available only when the browser and operating system
+offer it. A source without an audio track is rejected explicitly; it never
+silently falls back to microphone-only capture. Both mode also requests microphone
+access. Headphones help prevent the microphone picking up the lecture a second time.
+
+The browser requires a display-sharing selection to access lecture audio, but
+LecNote encodes and uploads audio only, not video. Ending sharing also stops and
+saves the recording. macOS may require browser microphone/screen-audio permissions.
+See [Chrome's capture controls](https://developer.chrome.com/docs/web-platform/screen-sharing-controls).
 
 Recordings can be up to 4 GiB, materials up to 30 MiB. Combined lecture/course/
 attachment context currently has a 24,000-character limit for note generation.

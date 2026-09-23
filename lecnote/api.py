@@ -532,7 +532,9 @@ def create_app(settings: Settings | None = None, start_worker=True):
     def live(body: LiveInput):
         if any(item["status"] == "recording" for item in repo.list("lectures")):
             raise HTTPException(409, "Finish the current recording first")
-        item = new_lecture(body.title, body.course_id, status="recording", language=body.language)
+        item = new_lecture(
+            body.title, body.course_id, status="recording", language=body.language, context=body.context
+        )
         return {"id": item["id"], "lecture_id": item["id"]}
 
     @app.post("/api/live/{lecture_id}/chunks")

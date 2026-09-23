@@ -12,7 +12,7 @@ import {
   Settings as SettingsIcon,
   X,
 } from "lucide-react";
-import type { Course, Settings as SettingsData } from "./types";
+import type { Course, RecordingDraft, Settings as SettingsData } from "./types";
 import { time, useResource } from "./lib/api";
 import { useRecorder } from "./lib/recorder";
 import { Library } from "./pages/Library";
@@ -38,6 +38,7 @@ export default function App() {
   const [mobile, setMobile] = useState(false);
   const [create, setCreate] = useState<"upload" | "transcript" | null>(null);
   const [version, setVersion] = useState(0);
+  const [recordingDraft, setRecordingDraft] = useState<RecordingDraft>();
   const [dirty, setDirty] = useState(false);
   const courses = useResource<Course[]>("/courses", 10000);
   const settings = useResource<SettingsData>("/settings");
@@ -229,7 +230,12 @@ export default function App() {
           ) : page === "search" ? (
             <Search courses={courseList} />
           ) : page === "record" ? (
-            <Record courses={courseList} settings={settings.data} />
+            <Record
+              courses={courseList}
+              settings={settings.data}
+              initialDraft={recordingDraft}
+              initialCourse={params.get("course") || ""}
+            />
           ) : page === "settings" ? (
             <Settings
               settings={settings.data}
@@ -266,6 +272,11 @@ export default function App() {
           settings={settings.data}
           initialMode={create}
           onClose={() => setCreate(null)}
+          onRecord={(draft) => {
+            setRecordingDraft(draft);
+            setCreate(null);
+            window.location.hash = "/record";
+          }}
           onSaved={(lecture) => {
             setCreate(null);
             changed();

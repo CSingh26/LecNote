@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import App from "./App";
@@ -23,6 +29,8 @@ const settings = {
 };
 const requests: { url: string; init?: RequestInit }[] = [];
 beforeEach(() => {
+  // Canvas drawing is verified in Chromium, not jsdom.
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
   window.location.hash = "#/library";
   requests.length = 0;
   vi.stubGlobal(
@@ -51,6 +59,49 @@ beforeEach(() => {
         headers: { "Content-Type": "application/json" },
       });
     }),
+  );
+});
+
+it("opens the recorder directly from the library header", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByText("Your library starts here");
+  await user.click(
+    within(document.querySelector(".page-header")!).getByRole("link", {
+      name: "Record lecture",
+    }),
+  );
+  expect(
+    await screen.findByRole("button", { name: "Start recording" }),
+  ).toBeInTheDocument();
+  expect(requests.some((request) => request.url === "/api/live")).toBe(false);
+});
+
+it("opens the recorder from New lecture without requiring a file or losing details", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByText("Your library starts here");
+  await user.click(screen.getAllByRole("button", { name: "New lecture" })[0]);
+  await user.type(
+    screen.getByLabelText("Lecture title"),
+    "Energy and momentum",
+  );
+  await user.type(
+    screen.getByLabelText("Lecture context"),
+    "Conservation laws",
+  );
+  await user.click(screen.getByRole("button", { name: "Record live" }));
+  expect(screen.queryByLabelText("Recording file")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Open recorder" }));
+  expect(await screen.findByLabelText("Recording title")).toHaveValue(
+    "Energy and momentum",
+  );
+  expect(screen.getByLabelText("Lecture context")).toHaveValue(
+    "Conservation laws",
+  );
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(requests.some((request) => request.init?.method === "POST")).toBe(
+    false,
   );
 });
 

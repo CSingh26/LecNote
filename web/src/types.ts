@@ -134,3 +134,9 @@ export interface GlossaryEntry extends Definition {
   lecture_id: string;
   lecture_title: string;
 }
+export type RecordingDraft = {
+  title: string;
+  course_id: string;
+  context: string;
+  language: string;
+};

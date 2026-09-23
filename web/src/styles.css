@@ -1698,6 +1698,14 @@ progress::-moz-progress-bar {
 .record-console .form-grid {
   gap: 12px;
 }
+.recording-sources .button {
+  flex-direction: column;
+  min-width: 0;
+  padding: 10px 4px;
+  font-size: 12px;
+  white-space: normal;
+  text-align: center;
+}
 .record-actions {
   display: flex;
   justify-content: center;

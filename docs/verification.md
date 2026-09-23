@@ -4,10 +4,10 @@ Verified on this Apple Silicon macOS laptop on September 23, 2026.
 
 ## Automated checks
 
-- Python: 155 tests passed across API, persistence, job recovery, processing,
+- Python: 157 tests passed across API, persistence, job recovery, processing,
   OpenAI request boundaries, OCR/speaker adapters, exports, and CLI.
-- Frontend: 20 Vitest tests passed; TypeScript and production build passed.
-- Frontend Chromium suite: two tests passed with explicit API fixtures.
+- Frontend: 28 Vitest tests passed; TypeScript and production build passed.
+- Frontend Chromium suite: five tests passed with explicit API fixtures.
 - Ruff and Git whitespace checks passed.
 - Independent review findings were fixed and regression-tested, including live
   cancellation/edit races, transcript constraints, timestamp overruns, Markdown
@@ -26,6 +26,15 @@ The recording run uses Chromium's simulated microphone fed with generated
 speech. Real local Whisper transcribes the independent WAV chunks; the full
 recording remains playable after completion. Navigation during recording and
 the waveform canvas were verified. No physical microphone was accessed.
+
+The mixed-source browser tests substitute generated 220 Hz and 880 Hz streams
+at the browser permission boundary. The real WebAudio mixer, worklet, and WAV
+encoder run unchanged. Spectral checks confirm both inputs in the final WAV.
+Tests cover manual stop, ended sharing during capture and setup, release of all
+audio/video tracks, source selection, and New lecture metadata handoff across
+consecutive recordings. No actual screen-sharing
+permission was granted during automation. Native picker/device compatibility
+still depends on the user's browser and macOS permissions.
 
 Reproduce the integration check in separate terminals after building the UI:
 

@@ -47,6 +47,13 @@ bundled locally; no font or rendering CDN is needed.
   explicit retry; a combined WAV is downloadable. The browser warns before
   leaving an active/unfinalized recording. Reloading or closing the tab still
   discards any audio not uploaded or downloaded.
+- Recording is available directly from the library header and New lecture.
+  Source modes capture microphone, shared lecture audio, or both. Shared audio
+  uses the browser's consent picker; support depends on the browser/OS and
+  the chosen surface. Both inputs are mixed at half gain before PCM encoding.
+  Video tracks are kept only for sharing lifetime, never saved or uploaded.
+  Stopping sharing saves the audio and releases every input track. Missing
+  shared audio and denied permissions return actionable errors without fallback.
 - Responsive sidebar, focus-trapped dialogs, Escape handling, arrow-key lecture
   tabs, loading/error/empty states, and unsaved-edit navigation warnings.
 

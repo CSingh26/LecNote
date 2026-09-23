@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from "react";
-import { FileAudio, FileText, Upload } from "lucide-react";
-import type { Course, Lecture, Settings } from "../types";
+import { FileAudio, FileText, Mic, Upload } from "lucide-react";
+import type { Course, Lecture, RecordingDraft, Settings } from "../types";
 import { api, json, lecturePath, message } from "../lib/api";
 import { parseTranscript } from "../lib/transcript";
 import { Button, CourseSelect, ErrorNotice, Field, Modal } from "./ui";
@@ -10,6 +10,7 @@ export function LectureForm({
   settings,
   onClose,
   onSaved,
+  onRecord,
   lecture,
   initialMode = "upload",
 }: {
@@ -17,10 +18,13 @@ export function LectureForm({
   settings?: Settings;
   onClose: () => void;
   onSaved: (lecture: Lecture) => void;
+  onRecord?: (draft: RecordingDraft) => void;
   lecture?: Lecture;
   initialMode?: "upload" | "transcript";
 }) {
-  const [mode, setMode] = useState(initialMode);
+  const [mode, setMode] = useState<"upload" | "transcript" | "record">(
+    initialMode,
+  );
   const [title, setTitle] = useState(lecture?.title ?? "");
   const [courseId, setCourseId] = useState(lecture?.course_id ?? "");
   const [context, setContext] = useState(lecture?.context ?? "");
@@ -47,6 +51,15 @@ export function LectureForm({
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (!lecture && mode === "record") {
+      onRecord?.({
+        title: title.trim(),
+        course_id: courseId,
+        context,
+        language,
+      });
+      return;
+    }
     setError("");
     setBusy(true);
     try {
@@ -101,13 +114,22 @@ export function LectureForm({
       <form onSubmit={submit}>
         <div className="modal-body">
           {!lecture && (
-            <div className="segmented" aria-label="Import type">
+            <div className="segmented" aria-label="Lecture source">
+              {onRecord && (
+                <Button
+                  icon={Mic}
+                  aria-pressed={mode === "record"}
+                  onClick={() => setMode("record")}
+                >
+                  Record live
+                </Button>
+              )}
               <Button
                 icon={FileAudio}
                 aria-pressed={mode === "upload"}
                 onClick={() => setMode("upload")}
               >
-                Recording
+                Upload file
               </Button>
               <Button
                 icon={FileText}
@@ -219,7 +241,7 @@ export function LectureForm({
               Generate notes after upload
             </label>
           )}
-          {!lecture && !settings?.api_key_configured && (
+          {!lecture && mode !== "record" && !settings?.api_key_configured && (
             <p className="muted small">
               No OpenAI key is configured. Save a draft and add a key in
               Settings before generating notes.
@@ -237,14 +259,21 @@ export function LectureForm({
           <Button onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button type="submit" variant="primary" icon={Upload} disabled={busy}>
+          <Button
+            type="submit"
+            variant="primary"
+            icon={mode === "record" ? Mic : Upload}
+            disabled={busy}
+          >
             {busy
               ? "Saving…"
               : lecture
                 ? "Save changes"
-                : mode === "transcript"
-                  ? "Import transcript"
-                  : "Add lecture"}
+                : mode === "record"
+                  ? "Open recorder"
+                  : mode === "transcript"
+                    ? "Import transcript"
+                    : "Add lecture"}
           </Button>
         </footer>
       </form>

@@ -177,6 +177,25 @@ def test_live_chunk_is_idempotent_and_rejects_out_of_order_offsets(client):
     assert invalid.status_code == 422
 
 
+def test_recording_preserves_context_from_new_lecture(client):
+    response = client.post(
+        "/api/live", json={"title": "Energy and momentum", "context": "Conservation laws"}
+    )
+    assert response.status_code == 201
+    lecture = client.get(f"/api/lectures/{response.json()['id']}").json()
+    assert lecture["context"] == "Conservation laws"
+
+
+def test_cancel_recording_setup_releases_session_without_a_pipeline_job(client):
+    live = client.post("/api/live", json={"title": "Interrupted setup"}).json()
+    cancelled = client.post(f"/api/lectures/{live['id']}/cancel")
+    assert cancelled.status_code == 200
+    lecture = client.get(f"/api/lectures/{live['id']}").json()
+    assert lecture["status"] == "cancelled"
+    assert lecture["job"] is None
+    assert client.post("/api/live", json={"title": "Next lecture"}).status_code == 201
+
+
 def test_delete_removes_lecture_files_without_touching_other_lectures(client):
     first, second = imported(client).json(), imported(client, "Other").json()
     assert client.delete(f"/api/lectures/{first['id']}").status_code == 204
