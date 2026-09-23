@@ -61,6 +61,25 @@ try {
   await page.getByRole('tab', { name: 'Notes', exact: true }).click();
   await page.getByRole('button', { name: 'Generate notes', exact: true }).click();
   await page.getByRole('heading', { name: 'Key takeaways', exact: true }).waitFor({ timeout: 20000 });
+  const notesBeforeEdit = (await (await page.request.get(`${base}/api/lectures/${lectureId}`)).json()).notes;
+  const accounting = await (await page.request.post(`${base}/api/courses`, {
+    data: { name: `Accounting ${suffix}`, code: 'ACC502' },
+  })).json();
+  await page.reload();
+  await page.getByLabel('Course', { exact: true }).selectOption(accounting.id);
+  await page.waitForResponse(response => response.url().endsWith(`/api/lectures/${lectureId}`)
+    && response.request().method() === 'GET');
+  await page.getByRole('button', { name: 'Edit lecture details', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Save changes', exact: true }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await page.reload();
+  await page.getByRole('heading', { name: 'Key takeaways', exact: true }).waitFor();
+  assert.equal(await page.getByLabel('Course', { exact: true }).inputValue(), accounting.id);
+  const savedLecture = await (await page.request.get(`${base}/api/lectures/${lectureId}`)).json();
+  assert.deepEqual(savedLecture.notes, notesBeforeEdit, 'Course assignment and detail saves must preserve notes');
+  assert.equal(savedLecture.course_id, accounting.id);
+  assert.equal(savedLecture.notes_stale, true);
+  await page.getByText(/Saved notes may be out of date/).waitFor();
   await page.locator('.katex').first().waitFor();
   await page.getByRole('button', { name: 'Edit notes', exact: true }).click();
   await page.getByLabel('Your notes', { exact: true }).fill('Remember to check SI units.');
@@ -111,6 +130,8 @@ try {
     await page.getByLabel('Recording title', { exact: true }).fill(`Recorded verification ${suffix}`);
     await page.getByRole('button', { name: 'Start recording', exact: true }).click();
     await page.getByRole('button', { name: 'Stop & save', exact: true }).waitFor();
+    assert.equal(await page.getByRole('heading', { name: 'Live transcript', exact: true }).count(), 0);
+    assert.equal(await page.locator('.segments').count(), 0);
     await page.waitForFunction(() => document.querySelector('.record-time')?.textContent === '0:16', null, { timeout: 25000 });
     const waveHasSignal = await page.locator('canvas').evaluate(canvas => {
       const values = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
@@ -129,7 +150,7 @@ try {
     await fits();
   }
   assert.deepEqual(errors, [], 'No browser runtime errors');
-  console.log(JSON.stringify({ status: 'passed', lectureId, screenshots: output, checks: ['course creation', 'transcript import', 'speaker edit', 'notes generation fixture', 'math', 'personal notes', 'review answer', 'PDF export', 'search', 'settings', 'desktop/mobile layouts'] }));
+  console.log(JSON.stringify({ status: 'passed', lectureId, screenshots: output, checks: ['course creation', 'transcript import', 'speaker edit', 'notes generation fixture', 'notes persist after details edit and reload', 'ACC502 assignment persists', 'math', 'personal notes', 'review answer', 'PDF export', 'search', 'settings', 'desktop/mobile layouts', 'no live transcript'] }));
 } catch (error) {
   await page.screenshot({ path: `${output}/failure.png`, fullPage: true });
   console.error((await page.locator('body').innerText()).slice(0, 6000));

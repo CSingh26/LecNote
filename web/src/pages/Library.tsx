@@ -29,7 +29,7 @@ export function Library({
   initialCourse = "",
 }: {
   courses: Course[];
-  onNew: (mode: "upload" | "transcript") => void;
+  onNew: (mode: "upload" | "transcript", courseId: string) => void;
   version: number;
   initialCourse?: string;
 }) {
@@ -50,10 +50,10 @@ export function Library({
         title="Library"
         actions={
           <>
-            <Button icon={Upload} onClick={() => onNew("transcript")}>
+            <Button icon={Upload} onClick={() => onNew("transcript", course)}>
               Import transcript
             </Button>
-            <Button icon={Plus} onClick={() => onNew("upload")}>
+            <Button icon={Plus} onClick={() => onNew("upload", course)}>
               New lecture
             </Button>
             <a
@@ -185,7 +185,7 @@ export function Library({
                 <Button
                   icon={Plus}
                   variant="primary"
-                  onClick={() => onNew("upload")}
+                  onClick={() => onNew("upload", course)}
                 >
                   New lecture
                 </Button>

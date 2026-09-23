@@ -121,3 +121,56 @@ def test_live_duration_includes_small_whisper_timestamp_overruns(tmp_path, monke
         assert Transcript.model_validate(transcript).segments[0].text == "Boundary"
     finally:
         manager.close()
+
+
+@pytest.mark.parametrize("mode", ["transcribe", "fail", "regenerate"])
+def test_existing_notes_survive_until_successful_replacement(tmp_path, mode):
+    repo = Repository(tmp_path / "library.sqlite3")
+    old = {"title": "Saved notes"}
+    repo.create("lectures", {"id": "lecture", "status": "ready", "notes": old, "notes_stale": True})
+
+    def pipeline(*args):
+        if mode == "fail":
+            raise RuntimeError("Provider unavailable")
+        return {
+            "transcript": {"duration": 20, "segments": []},
+            "notes": {"title": "New notes"} if mode == "regenerate" else None,
+        }
+
+    manager = JobManager(repo, Settings(data_dir=tmp_path), pipeline=pipeline, start_worker=False)
+    try:
+        job = manager.enqueue("lecture", transcribe_only=mode == "transcribe")
+        assert repo.get("lectures", "lecture")["notes"] == old
+        manager._run(job["id"])
+        saved = repo.get("lectures", "lecture")
+        assert saved["notes"] == ({"title": "New notes"} if mode == "regenerate" else old)
+        assert saved["notes_stale"] is (mode != "regenerate")
+    finally:
+        manager.close()
+
+
+@pytest.mark.parametrize("changed", [True, False])
+def test_transcription_marks_current_notes_stale_only_when_transcript_changes(tmp_path, changed):
+    repo = Repository(tmp_path / "library.sqlite3")
+    transcript = {"duration": 20, "segments": []}
+    repo.create(
+        "lectures",
+        {
+            "id": "lecture",
+            "status": "ready",
+            "notes": {"title": "Current"},
+            "transcript": transcript,
+            "notes_stale": False,
+        },
+    )
+
+    def pipeline(*args):
+        return {"notes": None, "transcript": {**transcript, "duration": 30} if changed else transcript}
+
+    manager = JobManager(repo, Settings(data_dir=tmp_path), pipeline=pipeline, start_worker=False)
+    try:
+        job = manager.enqueue("lecture", transcribe_only=True)
+        manager._run(job["id"])
+        assert repo.get("lectures", "lecture")["notes_stale"] is changed
+    finally:
+        manager.close()

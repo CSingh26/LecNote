@@ -13,6 +13,7 @@ export function LectureForm({
   onRecord,
   lecture,
   initialMode = "upload",
+  initialCourse = "",
 }: {
   courses: Course[];
   settings?: Settings;
@@ -21,12 +22,13 @@ export function LectureForm({
   onRecord?: (draft: RecordingDraft) => void;
   lecture?: Lecture;
   initialMode?: "upload" | "transcript";
+  initialCourse?: string;
 }) {
   const [mode, setMode] = useState<"upload" | "transcript" | "record">(
     initialMode,
   );
   const [title, setTitle] = useState(lecture?.title ?? "");
-  const [courseId, setCourseId] = useState(lecture?.course_id ?? "");
+  const [courseId, setCourseId] = useState(lecture?.course_id ?? initialCourse);
   const [context, setContext] = useState(lecture?.context ?? "");
   const [language, setLanguage] = useState(settings?.language ?? "");
   const [process, setProcess] = useState(Boolean(settings?.api_key_configured));

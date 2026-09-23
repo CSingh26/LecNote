@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import { Lecture } from "../pages/Lecture";
-import type { Lecture as LectureData, Settings } from "../types";
+import type { Course, Lecture as LectureData, Settings } from "../types";
 
 const base: LectureData = {
   id: "1",
@@ -114,4 +114,58 @@ it("saves corrected transcript speakers and personal notes to their real endpoin
   expect(JSON.parse(calls[1].body as string)).toEqual({
     user_notes: "My observation",
   });
+});
+
+const accounting: Course = {
+  id: "acc502",
+  name: "ACC",
+  code: "502",
+  color: "#26715b",
+  context: "",
+  vocabulary: "",
+  created_at: "2026-09-23",
+  lecture_count: 0,
+};
+
+it("assigns a saved lecture directly to ACC502 without resubmitting context", async () => {
+  const user = userEvent.setup();
+  render(<Lecture {...props} courses={[accounting]} />);
+  const select = await screen.findByRole("combobox", { name: "Course" });
+  await user.selectOptions(select, "acc502");
+  await waitFor(() => expect(calls).toHaveLength(1));
+  expect(calls[0].method).toBe("PATCH");
+  expect(JSON.parse(calls[0].body as string)).toEqual({ course_id: "acc502" });
+});
+
+it("keeps saved notes visible with an outdated notice after input edits", async () => {
+  lecture = {
+    ...base,
+    status: "ready",
+    notes_stale: true,
+    notes: {
+      title: "Accounting notes",
+      overview: "Assets equal liabilities plus equity.",
+      chunks: [],
+      takeaways: [],
+      glossary: [],
+      review_questions: [],
+      model: "test",
+      usage: { input_tokens: 0, output_tokens: 0 },
+    },
+  };
+  render(<Lecture {...props} />);
+  expect(
+    await screen.findByText("Assets equal liabilities plus equity."),
+  ).toBeVisible();
+  expect(screen.getByText(/Saved notes may be out of date/)).toBeVisible();
+});
+
+it("does not expose the transcript tab while a lecture is recording", async () => {
+  lecture = { ...base, status: "recording" };
+  render(<Lecture {...props} />);
+  await screen.findByText("Imported lesson");
+  expect(
+    screen.queryByRole("tab", { name: "Transcript" }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText("An idea")).not.toBeInTheDocument();
 });

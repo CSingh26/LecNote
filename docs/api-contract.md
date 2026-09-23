@@ -39,10 +39,17 @@ x_label:string,y_label:string,image:string|null}`.
   webm/ogg/flac/mov/aac. Returns queued job or draft.
 - POST `/lectures/import` JSON `{title,course_id?,context?,transcript:Transcript}` -> Lecture draft.
 - GET/PATCH/DELETE `/lectures/{id}`. PATCH `{title?,course_id?,context?,user_notes?}`.
+  Actual title/course/context changes preserve notes and set `notes_stale:true`
+  when notes exist. Unchanged fields do not invalidate notes. Course-context and
+  material changes follow the same preservation policy.
 - PUT `/lectures/{id}/transcript` Transcript -> Lecture, rejects active jobs;
-  invalidates generated notes/cache, preserves user_notes.
+  marks saved notes stale on changes, preserves notes and user_notes.
 - POST `/lectures/{id}/process` JSON `{force?:bool,diarize?:bool,transcribe_only?:bool}` -> Job.
-  Omitted diarize inherits the setting. Transcription-only completes as a draft with notes null.
+  Omitted diarize inherits the setting. Transcription-only preserves existing notes,
+  marking them stale if the transcript changes, or completes as a draft if no notes exist. Successful note generation
+  replaces notes and clears `notes_stale`. Failures keep the previous notes.
+  On startup, valid saved `notes.json` files repair missing database notes; recovered
+  notes are marked stale and never overwrite an existing database copy.
 - POST `/lectures/{id}/cancel` -> Job.
 - GET `/lectures/{id}/media` -> range-enabled original media or finalized WAV.
 - GET `/lectures/{id}/notes` -> Notes or 404.

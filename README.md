@@ -70,9 +70,14 @@ chunks generate up to four at a time; only one lecture pipeline runs at once.
 Changing source text, context, model, prompt, or chunk settings invalidates
 dependent caches. Force regeneration makes new note requests and may cost more.
 Completed cache usage describes the saved notes, not an account billing ledger.
+Saved notes stay visible when lecture details, course context, transcripts, or
+materials change. They are marked potentially out of date until successfully
+regenerated. Changing the Course selector on a lecture saves its assignment
+without deleting notes. New lectures inherit the class selected in the Library.
 
-Live transcription is near-live, not word-by-word streaming. Its latency depends
-on recording length and laptop speed. The browser must remain open while
+Whisper transcribes audio chunks locally in the background. The recorder shows
+the timer and waveform, not a live transcript; the transcript is available on the
+lecture page after recording. The browser must remain open while
 recording; saved chunks survive a backend restart. Microphone access begins only
 after pressing Record. A single worker owns each library, so stop the Web UI
 server before running processing through the CLI against the same library.

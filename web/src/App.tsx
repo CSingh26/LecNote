@@ -36,7 +36,10 @@ const navigation = [
 export default function App() {
   const [route, setRoute] = useState(window.location.hash || "#/library");
   const [mobile, setMobile] = useState(false);
-  const [create, setCreate] = useState<"upload" | "transcript" | null>(null);
+  const [create, setCreate] = useState<{
+    mode: "upload" | "transcript";
+    courseId: string;
+  } | null>(null);
   const [version, setVersion] = useState(0);
   const [recordingDraft, setRecordingDraft] = useState<RecordingDraft>();
   const [dirty, setDirty] = useState(false);
@@ -259,7 +262,7 @@ export default function App() {
             <Library
               key={params.get("course") || "all"}
               courses={courseList}
-              onNew={setCreate}
+              onNew={(mode, courseId) => setCreate({ mode, courseId })}
               version={version}
               initialCourse={params.get("course") || ""}
             />
@@ -270,7 +273,8 @@ export default function App() {
         <LectureForm
           courses={courseList}
           settings={settings.data}
-          initialMode={create}
+          initialMode={create.mode}
+          initialCourse={create.courseId}
           onClose={() => setCreate(null)}
           onRecord={(draft) => {
             setRecordingDraft(draft);

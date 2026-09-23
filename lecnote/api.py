@@ -110,6 +110,10 @@ def create_app(settings: Settings | None = None, start_worker=True):
             raise HTTPException(409, "Wait for processing to finish or cancel it first")
         return lecture
 
+    def outdated_notes(lecture):
+        # Editing inputs never destroys the last successfully generated notes.
+        return {"notes_stale": True} if lecture.get("notes") else {"status": "draft"}
+
     def public_lecture(lecture, brief=False):
         value = {
             k: v
@@ -188,13 +192,14 @@ def create_app(settings: Settings | None = None, start_worker=True):
     def patch_course(course_id: str, body: CoursePatch):
         check_course(course_id)
         values = body.model_dump(exclude_unset=True, exclude_none=True)
-        related = [item for item in repo.list("lectures") if item.get("course_id") == course_id]
         with manager.lock:
-            if set(values) & {"context", "vocabulary"}:
+            related = [item for item in repo.list("lectures") if item.get("course_id") == course_id]
+            current = repo.get("courses", course_id)
+            if any(values[key] != current.get(key) for key in values.keys() & {"context", "vocabulary"}):
                 for lecture in related:
                     editable(lecture["id"])
                 for lecture in related:
-                    repo.update("lectures", lecture["id"], {"notes": None, "status": "draft"})
+                    repo.update("lectures", lecture["id"], outdated_notes(lecture))
             return {**repo.update("courses", course_id, values), "lecture_count": len(related)}
 
     @app.delete("/api/courses/{course_id}", status_code=204)
@@ -278,11 +283,13 @@ def create_app(settings: Settings | None = None, start_worker=True):
             raise HTTPException(422, "Text fields cannot be null")
         with manager.lock:
             if set(values) - {"user_notes"}:
-                editable(lecture_id)
+                current = editable(lecture_id)
             else:
-                get_lecture(lecture_id)
-            if set(values) & {"course_id", "context"}:
-                values.update(notes=None, status="draft")
+                current = get_lecture(lecture_id)
+            if any(
+                values[key] != current.get(key) for key in values.keys() & {"title", "course_id", "context"}
+            ):
+                values.update(outdated_notes(current))
             return public_lecture(repo.update("lectures", lecture_id, values))
 
     @app.delete("/api/lectures/{lecture_id}", status_code=204)
@@ -299,7 +306,7 @@ def create_app(settings: Settings | None = None, start_worker=True):
     @app.put("/api/lectures/{lecture_id}/transcript")
     def put_transcript(lecture_id: str, body: TranscriptInput):
         with manager.lock:
-            editable(lecture_id)
+            current = editable(lecture_id)
             transcript = body.model_dump()
             (settings.lecture_dir(lecture_id) / "transcript.json").unlink(missing_ok=True)
             return public_lecture(
@@ -310,8 +317,7 @@ def create_app(settings: Settings | None = None, start_worker=True):
                         "transcript": transcript,
                         "duration": body.duration,
                         "language": body.language,
-                        "notes": None,
-                        "status": "draft",
+                        **(outdated_notes(current) if transcript != current.get("transcript") else {}),
                         "error": None,
                         "transcript_edited": True,
                     },
@@ -399,7 +405,7 @@ def create_app(settings: Settings | None = None, start_worker=True):
             repo.update(
                 "lectures",
                 lecture_id,
-                {"attachments": value["attachments"] + [item], "notes": None, "status": "draft"},
+                {"attachments": value["attachments"] + [item], **outdated_notes(value)},
             )
         return {k: v for k, v in item.items() if k != "path"}
 
@@ -425,8 +431,7 @@ def create_app(settings: Settings | None = None, start_worker=True):
                 lecture_id,
                 {
                     "attachments": [a for a in value["attachments"] if a["id"] != attachment_id],
-                    "notes": None,
-                    "status": "draft",
+                    **outdated_notes(value),
                 },
             )
             Path(item["path"]).unlink(missing_ok=True)

@@ -96,6 +96,7 @@ export interface Lecture {
   language: string;
   transcript: Transcript | null;
   notes: Notes | null;
+  notes_stale?: boolean;
   user_notes: string;
   attachments: Attachment[];
   error: string | null;

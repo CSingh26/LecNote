@@ -4,11 +4,16 @@ Verified on this Apple Silicon macOS laptop on September 23, 2026.
 
 ## Automated checks
 
-- Python: 157 tests passed across API, persistence, job recovery, processing,
+- Python: 169 tests passed across API, persistence, job recovery, processing,
   OpenAI request boundaries, OCR/speaker adapters, exports, and CLI.
-- Frontend: 28 Vitest tests passed; TypeScript and production build passed.
+- Frontend: 34 Vitest tests passed; TypeScript and production build passed.
 - Frontend Chromium suite: five tests passed with explicit API fixtures.
 - Ruff and Git whitespace checks passed.
+- Notes retention checks cover detail/course/material/transcript edits, failed
+  regeneration, local-only transcription, recovery from saved notes files, and
+  a course edit racing with generation completion. Browser integration verifies
+  ACC502 assignment and unchanged notes after detail saves and reload. Recorder
+  tests verify no live transcript content or detail polling during capture.
 - Independent review findings were fixed and regression-tested, including live
   cancellation/edit races, transcript constraints, timestamp overruns, Markdown
   math escaping, and CJK PDF output.

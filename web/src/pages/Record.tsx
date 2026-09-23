@@ -7,14 +7,13 @@ import {
   RotateCcw,
   Square,
 } from "lucide-react";
-import type { Course, Lecture, RecordingDraft, Settings } from "../types";
-import { time, useResource } from "../lib/api";
+import type { Course, RecordingDraft, Settings } from "../types";
+import { time } from "../lib/api";
 import { recorder, useRecorder } from "../lib/recorder";
 import type { RecordingSource } from "../lib/capture";
 import {
   Button,
   CourseSelect,
-  Empty,
   ErrorNotice,
   Field,
   LectureLink,
@@ -91,12 +90,7 @@ export function Record({
   );
   const [context, setContext] = useState(initialDraft?.context ?? "");
   const [source, setSource] = useState<RecordingSource>(state.source);
-  const lecture = useResource<Lecture>(
-    state.lectureId ? `/lectures/${state.lectureId}` : null,
-    2500,
-  );
   const active = recorder.protected;
-  const segments = lecture.data?.transcript?.segments ?? [];
   return (
     <>
       <PageHeader eyebrow="Live capture" title="Record" />
@@ -265,44 +259,6 @@ export function Record({
               </span>
               <LectureLink id={state.lectureId}>Open lecture</LectureLink>
             </div>
-          )}
-        </section>
-        <section className="live-transcript">
-          <div className="split">
-            <h2>Live transcript</h2>
-            <AudioLines size={19} />
-          </div>
-          <p className="muted small">
-            Transcription appears as local Whisper finishes each chunk.
-          </p>
-          <ErrorNotice error={lecture.error} retry={lecture.refresh} />
-          {segments.length ? (
-            <div className="segments">
-              {segments.map((segment, i) => (
-                <article key={`${segment.id}-${i}`}>
-                  <span className="timestamp-label">{time(segment.start)}</span>
-                  <div>
-                    {segment.speaker && (
-                      <strong className="speaker">{segment.speaker}</strong>
-                    )}
-                    <p>{segment.text}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <Empty
-              icon={AudioLines}
-              title={
-                state.phase === "recording" || state.phase === "stopping"
-                  ? "Listening for the first words"
-                  : "Ready when you are"
-              }
-            >
-              {active
-                ? "Chunks are sent about every 15 seconds. Transcription time depends on your computer."
-                : "Your live transcript will appear here."}
-            </Empty>
           )}
         </section>
       </div>
