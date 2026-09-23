@@ -41,7 +41,8 @@ x_label:string,y_label:string,image:string|null}`.
 - GET/PATCH/DELETE `/lectures/{id}`. PATCH `{title?,course_id?,context?,user_notes?}`.
 - PUT `/lectures/{id}/transcript` Transcript -> Lecture, rejects active jobs;
   invalidates generated notes/cache, preserves user_notes.
-- POST `/lectures/{id}/process` JSON `{force?:bool,diarize?:bool}` -> Job.
+- POST `/lectures/{id}/process` JSON `{force?:bool,diarize?:bool,transcribe_only?:bool}` -> Job.
+  Omitted diarize inherits the setting. Transcription-only completes as a draft with notes null.
 - POST `/lectures/{id}/cancel` -> Job.
 - GET `/lectures/{id}/media` -> range-enabled original media or finalized WAV.
 - GET `/lectures/{id}/notes` -> Notes or 404.

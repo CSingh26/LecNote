@@ -27,3 +27,6 @@ web/playwright-report/
 .superpowers/
 .coverage
 artifacts/
+
+# ONNX Runtime's local session marker
+/:memory:.ses

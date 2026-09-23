@@ -61,3 +61,9 @@ on a free loopback port and provide its URL.
 - Design and interfaces recorded; implementation starting.
 - User's existing approval supersedes repeated skill approval gates.
 - Local feature branch is used in place; repository began with documentation only.
+- Backend, pipeline, enrichment, export and CLI implementation complete: 152 Python tests passed.
+- Real local Whisper inference and macOS Vision OCR verified; no OpenAI credentials available.
+- Review findings addressed with regression coverage: live cancellation/edit race,
+  timestamp overrun, shared transcript constraints, Markdown TeX and CJK PDF text.
+- Library process lock prevents competing CLI/server workers. Local-only transcription
+  is an explicit processing mode. Web UI browser verification is in progress.
