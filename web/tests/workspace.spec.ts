@@ -398,10 +398,12 @@ test("recording survives navigation, sends sample-derived ordered WAV chunks and
   await page.getByLabel("Recording title").fill("Browser microphone test");
   await page.getByRole("button", { name: "Start recording" }).click();
   await expect(page.getByRole("button", { name: "Stop & save" })).toBeVisible();
+  await expect(page.getByText("Live transcript", { exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: "Library", exact: true }).click();
   await expect(page.getByText("Recording in progress")).toBeVisible();
   await expect.poll(() => received.length, { timeout: 20000 }).toBe(1);
   await page.getByRole("link", { name: "Record", exact: true }).click();
+  await expect(page.getByText("Live transcript", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Stop & save" }).click();
   await expect(
     page.getByRole("button", { name: "Record another lecture" }),

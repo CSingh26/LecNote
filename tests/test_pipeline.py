@@ -415,3 +415,46 @@ def test_transcribe_only_saves_raw_transcript_without_notes_or_credentials(tmp_p
     assert result == {"transcript": expected, "notes": None}
     assert json.loads((settings.lecture_dir(lecture["id"]) / "transcript.json").read_text()) == expected
     assert progress[-1][0:2] == ("ready", 100)
+
+
+def test_oversized_attachments_finish_with_bounded_chunk_specific_context(tmp_path, monkeypatch):
+    lecture, settings = make_lecture(2), make_settings(tmp_path)
+    lecture["transcript"]["segments"][0]["text"] = "Inventory LIFO reserve valuation"
+    lecture["transcript"]["segments"][1]["text"] = "Depreciation asset useful life"
+    lecture["attachments"] = [
+        {"name": "Inventory.pdf", "text": "Inventory LIFO reserve valuation. " * 2500},
+        {"name": "Assets.pdf", "text": "Depreciation asset useful life. " * 2500},
+    ]
+    captured = {}
+
+    def parse(**kwargs):
+        payload = json.loads(kwargs["input"])
+        assert len(payload["context"]) <= 24_000
+        assert len(kwargs["input"]) <= 120_000
+        if "chunk" in payload:
+            chunk = payload["chunk"]
+            captured[chunk["index"]] = payload["context"]
+            data = chunk_data(chunk["index"], chunk["start"], chunk["end"])
+        else:
+            captured["overview"] = payload["context"]
+            data = overview_data()
+        return response(data, kwargs["text_format"])
+
+    install_provider(monkeypatch, parse)
+    result = run(lecture, settings)
+    assert len(result["notes"]["chunks"]) == 2
+    assert len(captured) == 3
+    assert captured[0] != captured[1]
+    assert "Inventory LIFO reserve valuation" in captured[0]
+    assert "Depreciation asset useful life" in captured[1]
+    captured.clear()
+    assert run(lecture, settings) == result
+    assert captured == {}
+    lecture["attachments"][0]["text"] += "\nA new unrelated footnote."
+    run(lecture, settings)
+    assert len(captured) == 3
+    captured.clear()
+    lecture["attachments"][0]["name"] = "Renamed inventory slides.pdf"
+    run(lecture, settings)
+    assert len(captured) == 3
+    assert "Renamed inventory slides.pdf" in captured[0]

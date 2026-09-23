@@ -96,6 +96,13 @@ def test_settings_secrets_never_returned_and_local_origin_required(client):
     assert client.put("/api/settings", json={"api_key": ""}).json()["api_key_configured"] is False
 
 
+def test_app_shell_is_not_cached_so_reload_picks_up_ui_fixes(client):
+    for path in ("/", "/index.html"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == "no-store"
+
+
 def test_upload_uses_server_filename_and_unsupported_file_rejected(client):
     bad = client.post("/api/lectures", files={"file": ("bad.exe", b"x")}, data={"title": "No"})
     assert bad.status_code == 415

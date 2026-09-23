@@ -13,10 +13,10 @@ from types import SimpleNamespace
 from pydantic import ValidationError
 
 from . import notes as note_service
+from .context import SupportingContext
 from .schemas import (
     MAX_CHUNK_CHARACTERS,
     MAX_CHUNKS,
-    MAX_CONTEXT_CHARACTERS,
     ChunkNote,
     LectureOverview,
     Notes,
@@ -130,28 +130,6 @@ def chunk_transcript(transcript: dict, chunk_minutes: float = 8) -> list[dict]:
     return chunks
 
 
-def _context(lecture):
-    pieces = [f"Lecture title: {lecture.get('title', '')}"]
-    for key in ("course_context", "context", "vocabulary"):
-        value = lecture.get(key) or ""
-        if not isinstance(value, str):
-            raise ValueError(f"{key} must be text")
-        if value:
-            pieces.append(f"{key}:\n{value}")
-    for attachment in lecture.get("attachments") or []:
-        value = attachment.get("text") or ""
-        if not isinstance(value, str):
-            raise ValueError("Attachment context must be extracted text")
-        if value:
-            pieces.append("Supporting attachment text:\n" + value)
-    result = "\n\n".join(pieces)
-    if len(result) > MAX_CONTEXT_CHARACTERS:
-        raise ValueError(
-            "Context is too large (24,000 character limit); shorten context or remove attachments"
-        )
-    return result
-
-
 def run_pipeline(lecture: dict, settings, progress, is_cancelled) -> dict:
     def check():
         if is_cancelled():
@@ -226,13 +204,15 @@ def run_pipeline(lecture: dict, settings, progress, is_cancelled) -> dict:
     if lecture.get("transcribe_only"):
         progress("ready", 100, "Local transcription ready")
         return {"transcript": transcript.model_dump(), "notes": None}
-    context = _context(lecture)
+    context = SupportingContext(lecture)
     chunks = chunk_transcript(transcript.model_dump(), settings.chunk_minutes)
     cache_key = _digest(
         {
             "source": source_hash,
             "transcript": transcript.model_dump(),
-            "context": context,
+            "context": {"title": context.title, "sources": context.sources}
+            if context.limited else context.full,
+            **({"context_selection": "relevant-excerpts-v1"} if context.limited else {}),
             "model": settings.model,
             "prompt": note_service.PROMPT_VERSION,
             "instructions": [note_service.CHUNK_INSTRUCTIONS, note_service.OVERVIEW_INSTRUCTIONS],
@@ -282,7 +262,8 @@ def run_pipeline(lecture: dict, settings, progress, is_cancelled) -> dict:
 
     def process_chunk(chunk):
         check()
-        note, usage = generator.generate_chunk(chunk, context)
+        query = " ".join(segment["text"] for segment in chunk["segments"])
+        note, usage = generator.generate_chunk(chunk, context.select(query))
         _save_stage(cache_dir / f"chunk-{chunk['index']:04d}.json", cache_key, note.model_dump(), usage)
         return chunk["index"], note, usage
 
@@ -325,7 +306,10 @@ def run_pipeline(lecture: dict, settings, progress, is_cancelled) -> dict:
         if cached:
             overview, overview_usage = cached
         else:
-            overview, overview_usage = generator.summarize(ordered, lecture.get("title", "Lecture"), context)
+            query = " ".join(note.title + " " + note.summary for note in ordered)
+            overview, overview_usage = generator.summarize(
+                ordered, lecture.get("title", "Lecture"), context.select(query)
+            )
             _save_stage(overview_path, overview_key, overview.model_dump(), overview_usage)
         check()
         total_usage = Usage(

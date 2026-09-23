@@ -629,9 +629,10 @@ def create_app(settings: Settings | None = None, start_worker=True):
         if path.startswith("api/"):
             raise HTTPException(404, "Endpoint not found")
         if (web / "index.html").exists():
-            return FileResponse(web / "index.html")
+            return FileResponse(web / "index.html", headers={"Cache-Control": "no-store"})
         return Response(
-            "LecNote API is running. Build the Web UI with npm run build in web/.", media_type="text/plain"
+            "LecNote API is running. Build the Web UI with npm run build in web/.",
+            media_type="text/plain", headers={"Cache-Control": "no-store"},
         )
 
     return app

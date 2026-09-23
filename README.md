@@ -101,9 +101,11 @@ LecNote encodes and uploads audio only, not video. Ending sharing also stops and
 saves the recording. macOS may require browser microphone/screen-audio permissions.
 See [Chrome's capture controls](https://developer.chrome.com/docs/web-platform/screen-sharing-controls).
 
-Recordings can be up to 4 GiB, materials up to 30 MiB. Combined lecture/course/
-attachment context currently has a 24,000-character limit for note generation.
-Use relevant excerpts for longer material. Image-only PDFs need their pages
+Recordings can be up to 4 GiB, materials up to 30 MiB. Supporting context is
+limited to 24,000 characters per note-generation request. Larger lecture/course
+context and attachments are kept intact locally; each request automatically uses
+excerpts matched to its transcript section. Not every passage is sent in every
+request. Image-only PDFs need their pages
 attached as images for OCR. Complex Mermaid forms retain their source if the
 PDF raster fallback cannot render them. Standalone HTML uses the locally
 installed Mermaid bundle; install frontend dependencies for interactive diagrams.

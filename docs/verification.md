@@ -4,7 +4,7 @@ Verified on this Apple Silicon macOS laptop on September 23, 2026.
 
 ## Automated checks
 
-- Python: 169 tests passed across API, persistence, job recovery, processing,
+- Python: 178 tests passed across API, persistence, job recovery, processing,
   OpenAI request boundaries, OCR/speaker adapters, exports, and CLI.
 - Frontend: 34 Vitest tests passed; TypeScript and production build passed.
 - Frontend Chromium suite: five tests passed with explicit API fixtures.
@@ -14,6 +14,12 @@ Verified on this Apple Silicon macOS laptop on September 23, 2026.
   a course edit racing with generation completion. Browser integration verifies
   ACC502 assignment and unchanged notes after detail saves and reload. Recorder
   tests verify no live transcript content or detail polling during capture.
+- Oversized supporting materials use bounded, chunk-specific excerpts, with
+  source preservation, Unicode, overview generation, cached retries, and changed
+  material invalidation covered. A local size-only check of the affected saved
+  lecture verified all eight chunks fit the request limits without an OpenAI call.
+- The app shell uses `Cache-Control: no-store`. The user's existing Chrome tab
+  was safely refreshed after recording stopped; its recorder has no transcript panel.
 - Independent review findings were fixed and regression-tested, including live
   cancellation/edit races, transcript constraints, timestamp overruns, Markdown
   math escaping, and CJK PDF output.
