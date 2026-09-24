@@ -35,6 +35,9 @@ bundled locally; no font or rendering CDN is needed.
 - Lecture status polling; Notes, Transcript, Materials, and Review views;
   source playback and timestamp seeks; transcript and speaker corrections;
   separately saved personal notes; source uploads/previews/deletion.
+- Direct course assignment on the lecture page and selected-class handoff to
+  New lecture. Saved generated notes remain visible after input changes, with
+  an outdated notice until regeneration succeeds.
 - Markdown, HTML, PDF, and JSON exports; cross-lecture search and course
   glossary; job status/cancel/retry; local-only transcription without an API key.
 - Model, Whisper, chunk length, concurrency, prices, language, and diarization
@@ -47,6 +50,15 @@ bundled locally; no font or rendering CDN is needed.
   explicit retry; a combined WAV is downloadable. The browser warns before
   leaving an active/unfinalized recording. Reloading or closing the tab still
   discards any audio not uploaded or downloaded.
+- Recording is available directly from the library header and New lecture.
+  Source modes capture microphone, shared lecture audio, or both. Shared audio
+  uses the browser's consent picker; support depends on the browser/OS and
+  the chosen surface. Both inputs are mixed at half gain before PCM encoding.
+  Video tracks are kept only for sharing lifetime, never saved or uploaded.
+  Stopping sharing saves the audio and releases every input track. Missing
+  shared audio and denied permissions return actionable errors without fallback.
+  Recording displays a timer and waveform without live transcript polling.
+  The lecture's Transcript tab is hidden until recording stops.
 - Responsive sidebar, focus-trapped dialogs, Escape handling, arrow-key lecture
   tabs, loading/error/empty states, and unsaved-edit navigation warnings.
 

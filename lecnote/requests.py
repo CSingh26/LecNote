@@ -61,6 +61,7 @@ class LiveInput(Input):
     title: str = Field(min_length=1, max_length=200)
     course_id: str | None = None
     language: str = Field(default="", max_length=20)
+    context: str = Field(default="", max_length=100000)
 
 
 class SettingsInput(Input):

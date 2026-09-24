@@ -1,14 +1,24 @@
 import { useEffect, useRef, useState } from "react";
-import { AudioLines, Download, Mic, RotateCcw, Square } from "lucide-react";
-import type { Course, Lecture, Settings } from "../types";
-import { time, useResource } from "../lib/api";
+import {
+  AudioLines,
+  Download,
+  Mic,
+  Monitor,
+  Pause,
+  Play,
+  RotateCcw,
+  Square,
+} from "lucide-react";
+import type { Course, RecordingDraft, Settings } from "../types";
+import { time } from "../lib/api";
 import { recorder, useRecorder } from "../lib/recorder";
+import type { RecordingSource } from "../lib/capture";
 import {
   Button,
   CourseSelect,
-  Empty,
   ErrorNotice,
   Field,
+  IconButton,
   LectureLink,
   PageHeader,
 } from "../components/ui";
@@ -55,7 +65,7 @@ function Waveform({ signal }: { signal: number[] }) {
     <canvas
       ref={ref}
       className="waveform"
-      aria-label="Live microphone waveform"
+      aria-label="Live recording waveform"
       role="img"
     />
   );
@@ -63,40 +73,56 @@ function Waveform({ signal }: { signal: number[] }) {
 export function Record({
   courses,
   settings,
+  initialDraft,
+  initialCourse = "",
 }: {
   courses: Course[];
   settings?: Settings;
+  initialDraft?: RecordingDraft;
+  initialCourse?: string;
 }) {
   const state = useRecorder();
-  const [title, setTitle] = useState("");
-  const [course, setCourse] = useState("");
-  const [language, setLanguage] = useState(settings?.language ?? "");
-  const lecture = useResource<Lecture>(
-    state.lectureId ? `/lectures/${state.lectureId}` : null,
-    2500,
+  const [title, setTitle] = useState(
+    recorder.protected ? state.title : (initialDraft?.title ?? state.title),
   );
+  const [course, setCourse] = useState(
+    initialCourse || initialDraft?.course_id || "",
+  );
+  const [language, setLanguage] = useState(
+    initialDraft?.language ?? settings?.language ?? "",
+  );
+  const [context, setContext] = useState(initialDraft?.context ?? "");
+  const [source, setSource] = useState<RecordingSource>(state.source);
   const active = recorder.protected;
-  const segments = lecture.data?.transcript?.segments ?? [];
   return (
     <>
       <PageHeader eyebrow="Live capture" title="Record" />
       <div className="record-layout">
         <section className="record-console">
           <div className="split">
-            <span className="eyebrow">MICROPHONE</span>
+            <span className="eyebrow">
+              {source === "both"
+                ? "MICROPHONE + LECTURE"
+                : source === "lecture"
+                  ? "LECTURE AUDIO"
+                  : "MICROPHONE"}
+            </span>
             <span
-              className={`record-state ${state.phase === "recording" ? "is-live" : ""}`}
+              className={`record-state ${state.phase === "recording" ? "is-live" : state.phase === "paused" ? "is-paused" : ""}`}
+              role="status"
             >
               <i />
               {state.phase === "recording"
                 ? "Recording"
-                : state.phase === "stopping"
-                  ? "Finishing"
-                  : state.phase === "blocked"
-                    ? "Upload paused"
-                    : state.phase === "complete"
-                      ? "Saved"
-                      : "Standby"}
+                : state.phase === "paused"
+                  ? "Paused"
+                  : state.phase === "stopping"
+                    ? "Finishing"
+                    : state.phase === "blocked"
+                      ? "Upload paused"
+                      : state.phase === "complete"
+                        ? "Saved"
+                        : "Standby"}
             </span>
           </div>
           <div className="record-time">{time(state.elapsed)}</div>
@@ -104,10 +130,46 @@ export function Record({
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              void recorder.start(title.trim(), course, language);
+              void recorder.start(
+                title.trim(),
+                course,
+                language,
+                context,
+                source,
+              );
             }}
           >
             <fieldset disabled={active}>
+              <div className="field">
+                <span id="record-source-label">Audio source</span>
+                <div
+                  className="segmented recording-sources"
+                  role="group"
+                  aria-labelledby="record-source-label"
+                >
+                  <Button
+                    icon={Mic}
+                    aria-pressed={source === "microphone"}
+                    onClick={() => setSource("microphone")}
+                  >
+                    Microphone
+                  </Button>
+                  <Button
+                    icon={Monitor}
+                    aria-pressed={source === "lecture"}
+                    onClick={() => setSource("lecture")}
+                  >
+                    Lecture audio
+                  </Button>
+                  <Button
+                    icon={AudioLines}
+                    aria-pressed={source === "both"}
+                    onClick={() => setSource("both")}
+                  >
+                    Both
+                  </Button>
+                </div>
+              </div>
               <Field label="Recording title">
                 <input
                   required
@@ -133,6 +195,14 @@ export function Record({
                   />
                 </Field>
               </div>
+              <Field label="Lecture context">
+                <textarea
+                  rows={2}
+                  maxLength={100000}
+                  value={context}
+                  onChange={(event) => setContext(event.target.value)}
+                />
+              </Field>
             </fieldset>
             <div className="record-actions">
               {!active ? (
@@ -141,18 +211,33 @@ export function Record({
                     ? "Record another lecture"
                     : "Start recording"}
                 </Button>
-              ) : state.phase === "recording" ? (
-                <Button
-                  variant="danger"
-                  icon={Square}
-                  onClick={() => void recorder.stop()}
-                >
-                  Stop & save
-                </Button>
+              ) : ["recording", "paused"].includes(state.phase) ? (
+                <>
+                  <IconButton
+                    label={
+                      state.phase === "paused"
+                        ? "Resume recording"
+                        : "Pause recording"
+                    }
+                    icon={state.phase === "paused" ? Play : Pause}
+                    onClick={() =>
+                      state.phase === "paused"
+                        ? recorder.resume()
+                        : recorder.pause()
+                    }
+                  />
+                  <Button
+                    variant="danger"
+                    icon={Square}
+                    onClick={() => void recorder.stop()}
+                  >
+                    Stop & save
+                  </Button>
+                </>
               ) : (
                 <Button disabled>
                   {state.phase === "requesting"
-                    ? "Waiting for microphone…"
+                    ? "Waiting for audio access…"
                     : state.phase === "blocked"
                       ? "Recording retained"
                       : "Saving final audio…"}
@@ -161,8 +246,9 @@ export function Record({
             </div>
           </form>
           <p className="muted small">
-            Microphone access starts only when you press Record. You can move
-            around this workspace while recording; keep this browser tab open.
+            Audio capture starts only after you grant access. Only audio is
+            saved; shared video is not recorded. Keep this tab open until saving
+            finishes.
           </p>
           {!settings?.api_key_configured && (
             <div className="notice warning">
@@ -183,7 +269,9 @@ export function Record({
           {state.hasAudio && (
             <Button icon={Download} onClick={() => recorder.download()}>
               Download{" "}
-              {state.phase === "recording" ? "captured chunks" : "recording"}{" "}
+              {["recording", "paused"].includes(state.phase)
+                ? "captured chunks"
+                : "recording"}{" "}
               (WAV)
             </Button>
           )}
@@ -194,44 +282,6 @@ export function Record({
               </span>
               <LectureLink id={state.lectureId}>Open lecture</LectureLink>
             </div>
-          )}
-        </section>
-        <section className="live-transcript">
-          <div className="split">
-            <h2>Live transcript</h2>
-            <AudioLines size={19} />
-          </div>
-          <p className="muted small">
-            Transcription appears as local Whisper finishes each chunk.
-          </p>
-          <ErrorNotice error={lecture.error} retry={lecture.refresh} />
-          {segments.length ? (
-            <div className="segments">
-              {segments.map((segment, i) => (
-                <article key={`${segment.id}-${i}`}>
-                  <span className="timestamp-label">{time(segment.start)}</span>
-                  <div>
-                    {segment.speaker && (
-                      <strong className="speaker">{segment.speaker}</strong>
-                    )}
-                    <p>{segment.text}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <Empty
-              icon={AudioLines}
-              title={
-                state.phase === "recording" || state.phase === "stopping"
-                  ? "Listening for the first words"
-                  : "Ready when you are"
-              }
-            >
-              {active
-                ? "Chunks are sent about every 15 seconds. Transcription time depends on your computer."
-                : "Your live transcript will appear here."}
-            </Empty>
           )}
         </section>
       </div>

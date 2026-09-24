@@ -96,6 +96,7 @@ export interface Lecture {
   language: string;
   transcript: Transcript | null;
   notes: Notes | null;
+  notes_stale?: boolean;
   user_notes: string;
   attachments: Attachment[];
   error: string | null;
@@ -134,3 +135,9 @@ export interface GlossaryEntry extends Definition {
   lecture_id: string;
   lecture_title: string;
 }
+export type RecordingDraft = {
+  title: string;
+  course_id: string;
+  context: string;
+  language: string;
+};

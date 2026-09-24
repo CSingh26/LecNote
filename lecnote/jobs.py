@@ -5,6 +5,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from .locking import LibraryLock
+from .schemas import Notes
 
 log = logging.getLogger(__name__)
 ACTIVE = {"queued", "running"}
@@ -31,6 +32,18 @@ class JobManager:
                 if repo.get("lectures", job["lecture_id"]):
                     repo.update("lectures", job["lecture_id"], {"status": "interrupted"})
         for lecture in repo.list("lectures"):
+            if not lecture.get("notes"):
+                saved = settings.data_dir / "lectures" / lecture["id"] / "notes.json"
+                try:
+                    notes = Notes.model_validate_json(saved.read_text()).model_dump()
+                except (OSError, ValueError):
+                    pass
+                else:
+                    # Repair older versions that cleared the database copy on edits.
+                    values = {"notes": notes, "notes_stale": True}
+                    if lecture["status"] == "draft":
+                        values["status"] = "ready"
+                    repo.update("lectures", lecture["id"], values)
             if lecture["status"] == "recording":
                 repo.update(
                     "lectures",
@@ -79,6 +92,14 @@ class JobManager:
         with self.lock:
             job = self.active(lecture_id)
             if not job:
+                lecture = self.repo.get("lectures", lecture_id)
+                if lecture and lecture["status"] == "recording":
+                    self.repo.update(
+                        "lectures",
+                        lecture_id,
+                        {"status": "cancelled", "live_epoch": lecture.get("live_epoch", 0) + 1},
+                    )
+                    return {"status": "cancelled"}
                 return self.latest(lecture_id)
             self.cancelled.add(job["id"])
             lecture = self.repo.get("lectures", lecture_id)
@@ -173,14 +194,22 @@ class JobManager:
             with self.lock:
                 if cancelled():
                     raise PipelineCancelled("Cancelled")
+                saved_notes = result["notes"] or lecture.get("notes")
                 self.repo.update(
                     "lectures",
                     lecture_id,
                     {
                         "transcript": result["transcript"],
-                        "notes": result["notes"],
+                        "notes": saved_notes,
+                        "notes_stale": False
+                        if result["notes"]
+                        else bool(saved_notes)
+                        and (
+                            lecture.get("notes_stale", False)
+                            or result["transcript"] != lecture.get("transcript")
+                        ),
                         "duration": result["transcript"].get("duration", 0),
-                        "status": "ready" if result["notes"] else "draft",
+                        "status": "ready" if saved_notes else "draft",
                         "error": None,
                     },
                 )

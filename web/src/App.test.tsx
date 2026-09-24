@@ -1,7 +1,14 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import App from "./App";
+import type { Course } from "./types";
 
 const settings = {
   model: "gpt-4.1-mini",
@@ -22,9 +29,13 @@ const settings = {
   },
 };
 const requests: { url: string; init?: RequestInit }[] = [];
+let courseList: Course[] = [];
 beforeEach(() => {
+  // Canvas drawing is verified in Chromium, not jsdom.
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
   window.location.hash = "#/library";
   requests.length = 0;
+  courseList = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init?: RequestInit) => {
@@ -32,6 +43,7 @@ beforeEach(() => {
       let result: unknown = [];
       if (url === "/api/settings") result = settings;
       if (url === "/api/health") result = { status: "ok" };
+      if (url === "/api/courses") result = courseList;
       if (url === "/api/courses" && init?.method === "POST")
         result = {
           id: "course-1",
@@ -51,6 +63,78 @@ beforeEach(() => {
         headers: { "Content-Type": "application/json" },
       });
     }),
+  );
+});
+
+it("carries the selected class into New lecture and then the recorder", async () => {
+  courseList = [
+    {
+      id: "acc502",
+      name: "ACC",
+      code: "502",
+      color: "#26715b",
+      context: "",
+      vocabulary: "",
+      created_at: "2026-09-23",
+      lecture_count: 0,
+    },
+  ];
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("option", { name: "502 · ACC" });
+  await user.selectOptions(screen.getByLabelText("Filter by course"), "acc502");
+  await user.click(screen.getByRole("button", { name: "New lecture" }));
+  expect(screen.getByRole("combobox", { name: "Course" })).toHaveValue(
+    "acc502",
+  );
+  await user.type(screen.getByLabelText("Lecture title"), "Accounting lecture");
+  await user.click(screen.getByRole("button", { name: "Record live" }));
+  await user.click(screen.getByRole("button", { name: "Open recorder" }));
+  expect(await screen.findByRole("combobox", { name: "Course" })).toHaveValue(
+    "acc502",
+  );
+});
+
+it("opens the recorder directly from the library header", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByText("Your library starts here");
+  await user.click(
+    within(document.querySelector(".page-header")!).getByRole("link", {
+      name: "Record lecture",
+    }),
+  );
+  expect(
+    await screen.findByRole("button", { name: "Start recording" }),
+  ).toBeInTheDocument();
+  expect(requests.some((request) => request.url === "/api/live")).toBe(false);
+});
+
+it("opens the recorder from New lecture without requiring a file or losing details", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByText("Your library starts here");
+  await user.click(screen.getAllByRole("button", { name: "New lecture" })[0]);
+  await user.type(
+    screen.getByLabelText("Lecture title"),
+    "Energy and momentum",
+  );
+  await user.type(
+    screen.getByLabelText("Lecture context"),
+    "Conservation laws",
+  );
+  await user.click(screen.getByRole("button", { name: "Record live" }));
+  expect(screen.queryByLabelText("Recording file")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Open recorder" }));
+  expect(await screen.findByLabelText("Recording title")).toHaveValue(
+    "Energy and momentum",
+  );
+  expect(screen.getByLabelText("Lecture context")).toHaveValue(
+    "Conservation laws",
+  );
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(requests.some((request) => request.init?.method === "POST")).toBe(
+    false,
   );
 });
 

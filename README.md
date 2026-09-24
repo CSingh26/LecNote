@@ -58,7 +58,7 @@ server. The production build is served directly by Python without Node running.
 | Notes | Overview, takeaways, cited key points, definitions, LaTeX formulas, professor examples, emphasis, labeled generated practice |
 | Visuals | Validated Mermaid and numeric plots; no generated Python execution |
 | Courses | Context and vocabulary, lecture organization, glossary |
-| Live recording | Independent mono WAV chunks, local transcription, saved full recording, normal note generation after stopping |
+| Live recording | Microphone, shared lecture audio, or both mixed together; local transcription and saved full WAV recording |
 | Materials | Local text/PDF extraction and image OCR; original files remain local |
 | Recovery | Completed transcription and note chunks cached; failed/cancelled/interrupted jobs can resume |
 | Exports | Markdown, standalone HTML, PDF, and JSON; includes personal annotations |
@@ -70,16 +70,49 @@ chunks generate up to four at a time; only one lecture pipeline runs at once.
 Changing source text, context, model, prompt, or chunk settings invalidates
 dependent caches. Force regeneration makes new note requests and may cost more.
 Completed cache usage describes the saved notes, not an account billing ledger.
+Saved notes stay visible when lecture details, course context, transcripts, or
+materials change. They are marked potentially out of date until successfully
+regenerated. Changing the Course selector on a lecture saves its assignment
+without deleting notes. New lectures inherit the class selected in the Library.
 
-Live transcription is near-live, not word-by-word streaming. Its latency depends
-on recording length and laptop speed. The browser must remain open while
+Whisper transcribes audio chunks locally in the background. The recorder shows
+the timer and waveform, not a live transcript; the transcript is available on the
+lecture page after recording. The browser must remain open while
 recording; saved chunks survive a backend restart. Microphone access begins only
 after pressing Record. A single worker owns each library, so stop the Web UI
 server before running processing through the CLI against the same library.
 
-Recordings can be up to 4 GiB, materials up to 30 MiB. Combined lecture/course/
-attachment context currently has a 24,000-character limit for note generation.
-Use relevant excerpts for longer material. Image-only PDFs need their pages
+### Record a lecture
+
+Choose **Record lecture** in the Library, or **New lecture > Record live**.
+Enter the title, select **Microphone**, **Lecture audio**, or **Both**, then
+press **Start recording**. Stop & save preserves the WAV recording and queues
+local transcription; an OpenAI key is needed only for the generated notes.
+
+Use the **Pause** icon beside Stop & save to take a break, then **Resume** to
+continue the same lecture. Paused audio and time are excluded from the saved WAV;
+audio recorded before the pause is uploaded normally. Stop & save also works
+while paused. Keep the tab open: microphone/screen-sharing access stays active
+so resuming does not need another permission prompt. Ending sharing while paused
+finishes and saves the recording.
+
+For online lectures, open LecNote in desktop Chrome or Edge, select the lecture
+tab in the browser's sharing picker, and enable tab audio. Audio from other apps
+or the entire system is available only when the browser and operating system
+offer it. A source without an audio track is rejected explicitly; it never
+silently falls back to microphone-only capture. Both mode also requests microphone
+access. Headphones help prevent the microphone picking up the lecture a second time.
+
+The browser requires a display-sharing selection to access lecture audio, but
+LecNote encodes and uploads audio only, not video. Ending sharing also stops and
+saves the recording. macOS may require browser microphone/screen-audio permissions.
+See [Chrome's capture controls](https://developer.chrome.com/docs/web-platform/screen-sharing-controls).
+
+Recordings can be up to 4 GiB, materials up to 30 MiB. Supporting context is
+limited to 24,000 characters per note-generation request. Larger lecture/course
+context and attachments are kept intact locally; each request automatically uses
+excerpts matched to its transcript section. Not every passage is sent in every
+request. Image-only PDFs need their pages
 attached as images for OCR. Complex Mermaid forms retain their source if the
 PDF raster fallback cannot render them. Standalone HTML uses the locally
 installed Mermaid bundle; install frontend dependencies for interactive diagrams.

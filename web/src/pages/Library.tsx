@@ -5,6 +5,7 @@ import {
   FileAudio,
   FileText,
   Library as LibraryIcon,
+  Mic,
   Plus,
   Search,
   Upload,
@@ -28,7 +29,7 @@ export function Library({
   initialCourse = "",
 }: {
   courses: Course[];
-  onNew: (mode: "upload" | "transcript") => void;
+  onNew: (mode: "upload" | "transcript", courseId: string) => void;
   version: number;
   initialCourse?: string;
 }) {
@@ -49,16 +50,19 @@ export function Library({
         title="Library"
         actions={
           <>
-            <Button icon={Upload} onClick={() => onNew("transcript")}>
+            <Button icon={Upload} onClick={() => onNew("transcript", course)}>
               Import transcript
             </Button>
-            <Button
-              variant="primary"
-              icon={Plus}
-              onClick={() => onNew("upload")}
-            >
+            <Button icon={Plus} onClick={() => onNew("upload", course)}>
               New lecture
             </Button>
+            <a
+              className="button primary"
+              href={`#/record${course ? `?course=${encodeURIComponent(course)}` : ""}`}
+            >
+              <Mic size={16} aria-hidden="true" />
+              Record lecture
+            </a>
           </>
         }
       />
@@ -181,7 +185,7 @@ export function Library({
                 <Button
                   icon={Plus}
                   variant="primary"
-                  onClick={() => onNew("upload")}
+                  onClick={() => onNew("upload", course)}
                 >
                   New lecture
                 </Button>

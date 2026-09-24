@@ -1,6 +1,8 @@
 import io
+import json
 import threading
 import wave
+from contextlib import contextmanager
 
 import pytest
 from fastapi.testclient import TestClient
@@ -94,6 +96,13 @@ def test_settings_secrets_never_returned_and_local_origin_required(client):
     assert client.put("/api/settings", json={"api_key": ""}).json()["api_key_configured"] is False
 
 
+def test_app_shell_is_not_cached_so_reload_picks_up_ui_fixes(client):
+    for path in ("/", "/index.html"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == "no-store"
+
+
 def test_upload_uses_server_filename_and_unsupported_file_rejected(client):
     bad = client.post("/api/lectures", files={"file": ("bad.exe", b"x")}, data={"title": "No"})
     assert bad.status_code == 415
@@ -123,7 +132,7 @@ def test_queue_deduplicates_and_cancel_preserves_transcript(client):
     assert fetched["job"]["status"] == "cancelled"
 
 
-def test_transcript_edit_validates_and_removes_generated_notes(client):
+def test_transcript_edit_preserves_generated_notes_as_outdated(client):
     lecture = imported(client).json()
     repo = client.app.state.repo
     repo.update(
@@ -138,9 +147,127 @@ def test_transcript_edit_validates_and_removes_generated_notes(client):
     }
     response = client.put(f"/api/lectures/{lecture['id']}/transcript", json=new)
     assert response.status_code == 200
-    assert response.json()["notes"] is None
+    assert response.json()["notes"] == {"title": "Outdated"}
+    assert response.json()["notes_stale"] is True
     assert response.json()["user_notes"] == "My annotation"
     assert client.get("/api/search?q=Corrected").json()[0]["timestamp"] == 0
+
+
+@pytest.mark.parametrize("change", ["unchanged", "title", "course", "context"])
+def test_lecture_details_preserve_saved_notes(client, change):
+    lecture = imported(client).json()
+    course = client.post("/api/courses", json={"name": "ACC", "code": "502"}).json()
+    notes = {"title": "Saved accounting notes", "overview": "Assets and liabilities"}
+    client.app.state.repo.update("lectures", lecture["id"], {"notes": notes, "status": "ready"})
+    values = {"title": lecture["title"], "context": "", "course_id": None}
+    if change == "title":
+        values["title"] = "Renamed lecture"
+    elif change == "course":
+        values["course_id"] = course["id"]
+    elif change == "context":
+        values["context"] = "Accounting"
+    response = client.patch(f"/api/lectures/{lecture['id']}", json=values)
+    assert response.status_code == 200
+    saved = client.get(f"/api/lectures/{lecture['id']}").json()
+    assert saved["notes"] == notes
+    assert saved["status"] == "ready"
+    assert saved.get("notes_stale", False) is (change != "unchanged")
+    assert saved["course_id"] == values["course_id"]
+    assert client.get(f"/api/lectures/{lecture['id']}/notes").json() == notes
+
+
+def test_course_and_material_edits_preserve_notes(client):
+    course = client.post("/api/courses", json={"name": "ACC", "code": "502"}).json()
+    lecture = imported(client).json()
+    path = f"/api/lectures/{lecture['id']}"
+    client.patch(path, json={"course_id": course["id"]})
+    notes = {"title": "Saved notes"}
+    client.app.state.repo.update("lectures", lecture["id"], {"notes": notes, "status": "ready"})
+    client.patch(f"/api/courses/{course['id']}", json={"context": ""})
+    assert client.get(path).json()["notes"] == notes
+    assert not client.get(path).json().get("notes_stale", False)
+    client.patch(f"/api/courses/{course['id']}", json={"context": "New context"})
+    assert client.get(path).json()["notes"] == notes
+    assert client.get(path).json()["notes_stale"] is True
+    material = client.post(path + "/attachments", files={"file": ("syllabus.txt", b"Accounting")}).json()
+    assert client.get(path).json()["notes"] == notes
+    client.delete(material["url"])
+    assert client.get(path).json()["notes"] == notes
+
+
+def test_restart_restores_valid_notes_file_without_overwriting_saved_notes(tmp_path):
+    from lecnote.db import Repository
+
+    repo = Repository(tmp_path / "library.sqlite3")
+    notes = {
+        "title": "Recovered",
+        "overview": "Preserved overview",
+        "takeaways": [],
+        "chunks": [],
+        "glossary": [],
+        "review_questions": [],
+        "usage": {},
+        "model": "test",
+    }
+    for identifier, existing, content in [
+        ("missing", None, json.dumps(notes)),
+        ("existing", {"title": "Newer"}, json.dumps(notes)),
+        ("invalid", None, "{}"),
+    ]:
+        repo.create("lectures", {"id": identifier, "status": "draft", "notes": existing})
+        folder = tmp_path / "lectures" / identifier
+        folder.mkdir(parents=True)
+        (folder / "notes.json").write_text(content)
+    with TestClient(create_app(Settings(data_dir=tmp_path), start_worker=False)) as client:
+        recovered = client.get("/api/lectures/missing").json()
+        assert recovered["notes"]["overview"] == "Preserved overview"
+        assert recovered["notes_stale"] is True
+        assert recovered["status"] == "ready"
+        assert client.get("/api/lectures/existing").json()["notes"] == {"title": "Newer"}
+        assert client.get("/api/lectures/invalid").json()["notes"] is None
+    assert repo.get("lectures", "missing")["notes"]["title"] == "Recovered"
+
+
+def test_course_context_edit_uses_notes_saved_while_waiting_for_lock(client):
+    course = client.post("/api/courses", json={"name": "ACC502"}).json()
+    lecture = imported(client).json()
+    path = f"/api/lectures/{lecture['id']}"
+    client.patch(path, json={"course_id": course["id"]})
+    manager = client.app.state.jobs
+    lock = manager.lock
+    waiting = threading.Event()
+
+    @contextmanager
+    def observed_lock():
+        waiting.set()
+        with lock:
+            yield
+
+    manager.lock = observed_lock()
+    responses = []
+    with lock:
+        request = threading.Thread(
+            target=lambda: responses.append(
+                client.patch(f"/api/courses/{course['id']}", json={"context": "New syllabus"})
+            )
+        )
+        request.start()
+        assert waiting.wait(3)
+        client.app.state.repo.update(
+            "lectures",
+            lecture["id"],
+            {
+                "notes": {"title": "Just completed"},
+                "status": "ready",
+                "notes_stale": False,
+            },
+        )
+    request.join(3)
+    manager.lock = lock
+    assert responses[0].status_code == 200
+    saved = client.get(path).json()
+    assert saved["status"] == "ready"
+    assert saved["notes_stale"] is True
 
 
 def test_context_attachment_is_local_and_removable(client):
@@ -175,6 +302,23 @@ def test_live_chunk_is_idempotent_and_rejects_out_of_order_offsets(client):
         endpoint, files={"file": ("chunk.wav", stream.getvalue())}, data={"sequence": "2", "offset": "-1"}
     )
     assert invalid.status_code == 422
+
+
+def test_recording_preserves_context_from_new_lecture(client):
+    response = client.post("/api/live", json={"title": "Energy and momentum", "context": "Conservation laws"})
+    assert response.status_code == 201
+    lecture = client.get(f"/api/lectures/{response.json()['id']}").json()
+    assert lecture["context"] == "Conservation laws"
+
+
+def test_cancel_recording_setup_releases_session_without_a_pipeline_job(client):
+    live = client.post("/api/live", json={"title": "Interrupted setup"}).json()
+    cancelled = client.post(f"/api/lectures/{live['id']}/cancel")
+    assert cancelled.status_code == 200
+    lecture = client.get(f"/api/lectures/{live['id']}").json()
+    assert lecture["status"] == "cancelled"
+    assert lecture["job"] is None
+    assert client.post("/api/live", json={"title": "Next lecture"}).status_code == 201
 
 
 def test_delete_removes_lecture_files_without_touching_other_lectures(client):

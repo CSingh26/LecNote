@@ -25,6 +25,7 @@ import {
 import {
   Button,
   Confirm,
+  CourseSelect,
   ErrorNotice,
   IconButton,
   JobProgress,
@@ -68,6 +69,21 @@ export function Lecture({
     resource.refresh();
     onChanged();
   };
+  async function assignCourse(courseId: string) {
+    setBusy("course");
+    setError("");
+    try {
+      await api(
+        lecturePath(id),
+        json("PATCH", { course_id: courseId || null }),
+      );
+      refresh();
+    } catch (error) {
+      setError(message(error));
+    } finally {
+      setBusy("");
+    }
+  }
   async function process(force = false, transcribeOnly = false) {
     setBusy("process");
     setError("");
@@ -164,6 +180,10 @@ export function Lecture({
       </>
     );
   const active = activeStatus(lecture.status);
+  const tabs = ["Notes", "Transcript", "Materials", "Review"].filter(
+    (name) => name !== "Transcript" || lecture.status !== "recording",
+  );
+  const visibleTab = tabs.includes(tab) ? tab : "Notes";
   const hasMedia = Boolean(lecture.media_type);
   const video =
     lecture.media_type?.startsWith("video") ||
@@ -186,6 +206,15 @@ export function Lecture({
             <span>{date(lecture.created_at)}</span>
             {lecture.duration > 0 && <span>{time(lecture.duration)}</span>}
           </div>
+          <label className="field lecture-course">
+            <span>Course</span>
+            <CourseSelect
+              courses={courses}
+              value={lecture.course_id || ""}
+              onChange={(value) => void assignCourse(value)}
+              disabled={active || Boolean(busy)}
+            />
+          </label>
         </div>
         <div className="actions">
           <IconButton
@@ -348,28 +377,29 @@ export function Lecture({
         </div>
       </div>
       <div className="tabs" role="tablist" aria-label="Lecture views">
-        {["Notes", "Transcript", "Materials", "Review"].map((name, index) => (
+        {tabs.map((name, index) => (
           <button
             key={name}
             id={`tab-${name}`}
             role="tab"
-            aria-selected={tab === name}
+            aria-selected={visibleTab === name}
             aria-controls={`panel-${name}`}
-            tabIndex={tab === name ? 0 : -1}
+            tabIndex={visibleTab === name ? 0 : -1}
             onKeyDown={(event) => {
               if (
                 ["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
               ) {
                 event.preventDefault();
-                const names = ["Notes", "Transcript", "Materials", "Review"];
                 const target =
                   event.key === "Home"
                     ? 0
                     : event.key === "End"
-                      ? 3
-                      : (index + (event.key === "ArrowRight" ? 1 : 3)) % 4;
-                document.getElementById(`tab-${names[target]}`)?.click();
-                document.getElementById(`tab-${names[target]}`)?.focus();
+                      ? tabs.length - 1
+                      : (index +
+                          (event.key === "ArrowRight" ? 1 : tabs.length - 1)) %
+                        tabs.length;
+                document.getElementById(`tab-${tabs[target]}`)?.click();
+                document.getElementById(`tab-${tabs[target]}`)?.focus();
               }
             }}
             onClick={() => {
@@ -388,11 +418,11 @@ export function Lecture({
       </div>
       <div
         role="tabpanel"
-        id={`panel-${tab}`}
-        aria-labelledby={`tab-${tab}`}
+        id={`panel-${visibleTab}`}
+        aria-labelledby={`tab-${visibleTab}`}
         tabIndex={0}
       >
-        {tab === "Notes" ? (
+        {visibleTab === "Notes" ? (
           <NotesView
             lecture={lecture}
             prices={settings}
@@ -400,14 +430,14 @@ export function Lecture({
             onSaved={refresh}
             onDirty={onDirty}
           />
-        ) : tab === "Transcript" ? (
+        ) : visibleTab === "Transcript" ? (
           <TranscriptView
             lecture={lecture}
             onSeek={seek}
             onSaved={refresh}
             onDirty={onDirty}
           />
-        ) : tab === "Materials" ? (
+        ) : visibleTab === "Materials" ? (
           <Materials lecture={lecture} onSaved={refresh} />
         ) : (
           <Review lecture={lecture} />

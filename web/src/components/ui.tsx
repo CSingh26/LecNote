@@ -156,16 +156,19 @@ export function CourseSelect({
   value,
   onChange,
   all = false,
+  disabled = false,
 }: {
   courses: Course[];
   value: string;
   onChange: (value: string) => void;
   all?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <select
       aria-label={all ? "Filter by course" : "Course"}
       value={value}
+      disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
     >
       <option value="">{all ? "All courses" : "No course"}</option>

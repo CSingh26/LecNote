@@ -1,14 +1,25 @@
 # Verification record
 
-Verified on this Apple Silicon macOS laptop on September 23, 2026.
+Verified on this Apple Silicon macOS laptop on September 24, 2026.
 
 ## Automated checks
 
-- Python: 155 tests passed across API, persistence, job recovery, processing,
+- Python: 178 tests passed across API, persistence, job recovery, processing,
   OpenAI request boundaries, OCR/speaker adapters, exports, and CLI.
-- Frontend: 20 Vitest tests passed; TypeScript and production build passed.
-- Frontend Chromium suite: two tests passed with explicit API fixtures.
+- Frontend: 38 Vitest tests passed; TypeScript and production build passed.
+- Frontend Chromium suite: eight tests passed with explicit API fixtures.
 - Ruff and Git whitespace checks passed.
+- Notes retention checks cover detail/course/material/transcript edits, failed
+  regeneration, local-only transcription, recovery from saved notes files, and
+  a course edit racing with generation completion. Browser integration verifies
+  ACC502 assignment and unchanged notes after detail saves and reload. Recorder
+  tests verify no live transcript content or detail polling during capture.
+- Oversized supporting materials use bounded, chunk-specific excerpts, with
+  source preservation, Unicode, overview generation, cached retries, and changed
+  material invalidation covered. A local size-only check of the affected saved
+  lecture verified all eight chunks fit the request limits without an OpenAI call.
+- The app shell uses `Cache-Control: no-store`. The user's existing Chrome tab
+  was safely refreshed after recording stopped; its recorder has no transcript panel.
 - Independent review findings were fixed and regression-tested, including live
   cancellation/edit races, transcript constraints, timestamp overruns, Markdown
   math escaping, and CJK PDF output.
@@ -26,6 +37,22 @@ The recording run uses Chromium's simulated microphone fed with generated
 speech. Real local Whisper transcribes the independent WAV chunks; the full
 recording remains playable after completion. Navigation during recording and
 the waveform canvas were verified. No physical microphone was accessed.
+
+The mixed-source browser tests substitute generated 220 Hz and 880 Hz streams
+at the browser permission boundary. The real WebAudio mixer, worklet, and WAV
+encoder run unchanged. Spectral checks confirm both inputs in the final WAV.
+Tests cover manual stop, ended sharing during capture and setup, release of all
+audio/video tracks, source selection, and New lecture metadata handoff across
+consecutive recordings. No actual screen-sharing
+permission was granted during automation. Native picker/device compatibility
+still depends on the user's browser and macOS permissions.
+
+Pause/resume tests verify sample-level exclusion of paused audio and elapsed
+time, partial-chunk flushing, repeated resumes, stopping while paused, and
+sharing ending while paused. Browser checks cover the paused navigation banner,
+reload protection, a single recording session, continuous upload offsets, hidden
+transcript, and desktop/mobile controls. Input devices remain connected during
+a pause; their audio is discarded by the capture worklet until resume.
 
 Reproduce the integration check in separate terminals after building the UI:
 

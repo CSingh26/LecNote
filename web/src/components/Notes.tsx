@@ -58,6 +58,12 @@ export function NotesView({
   return (
     <div className="notes-layout">
       <div className="notes-content">
+        {notes && lecture.notes_stale && (
+          <div className="notice warning" role="status">
+            Saved notes may be out of date. Lecture inputs have changed since
+            they were generated.
+          </div>
+        )}
         {notes ? (
           <>
             <section className="note-section" id="overview">

@@ -1639,12 +1639,19 @@ progress::-moz-progress-bar {
   font-size: 12px;
   line-height: 1.8;
 }
+.lecture-course {
+  margin-top: 16px;
+  width: 100%;
+  max-width: 360px;
+}
 .record-layout {
   display: grid;
-  grid-template-columns: minmax(270px, 0.85fr) minmax(0, 1.15fr);
-  gap: 50px;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  max-width: 640px;
 }
 .record-console {
+  min-width: 0;
   align-self: start;
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -1670,6 +1677,12 @@ progress::-moz-progress-bar {
 .record-state.is-live i {
   background: #b34b52;
   animation: blink 1.4s ease infinite;
+}
+.record-state.is-paused {
+  color: #8a681b;
+}
+.record-state.is-paused i {
+  background: currentColor;
 }
 @keyframes blink {
   50% {
@@ -1698,10 +1711,27 @@ progress::-moz-progress-bar {
 .record-console .form-grid {
   gap: 12px;
 }
+.recording-sources .button {
+  flex-direction: column;
+  min-width: 0;
+  padding: 10px 4px;
+  font-size: 12px;
+  white-space: normal;
+  text-align: center;
+}
 .record-actions {
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
   margin: 24px 0 18px;
+}
+.record-actions .icon-button {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
 }
 .record-actions .button {
   min-width: 180px;
@@ -1723,25 +1753,6 @@ progress::-moz-progress-bar {
   margin-top: 22px;
   font-size: 10px;
   color: #8f9c93;
-}
-.live-transcript {
-  min-width: 0;
-}
-.live-transcript h2 {
-  font-size: 17px;
-}
-.live-transcript > .muted {
-  margin-top: 10px;
-}
-.live-transcript .empty {
-  min-height: 330px;
-  padding: 50px 12px;
-}
-.live-transcript .empty h2 {
-  font-size: 18px;
-}
-.live-transcript > .split {
-  color: #87958a;
 }
 .recording-banner {
   display: flex;
@@ -1832,10 +1843,6 @@ progress::-moz-progress-bar {
     grid-template-columns: minmax(0, 1fr) 165px;
     gap: 25px;
   }
-  .record-layout {
-    gap: 25px;
-    grid-template-columns: minmax(270px, 1fr) minmax(0, 1fr);
-  }
   .lecture-list-heading,
   .lecture-row {
     grid-template-columns: minmax(180px, 2fr) minmax(80px, 1fr) 95px 18px;
@@ -1894,15 +1901,6 @@ progress::-moz-progress-bar {
   }
   .notes-outline {
     display: none;
-  }
-  .record-layout {
-    display: block;
-  }
-  .record-console {
-    max-width: 600px;
-  }
-  .live-transcript {
-    margin-top: 35px;
   }
   .settings-section {
     grid-template-columns: 1fr;

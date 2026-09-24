@@ -12,7 +12,7 @@ import {
   Settings as SettingsIcon,
   X,
 } from "lucide-react";
-import type { Course, Settings as SettingsData } from "./types";
+import type { Course, RecordingDraft, Settings as SettingsData } from "./types";
 import { time, useResource } from "./lib/api";
 import { useRecorder } from "./lib/recorder";
 import { Library } from "./pages/Library";
@@ -36,8 +36,12 @@ const navigation = [
 export default function App() {
   const [route, setRoute] = useState(window.location.hash || "#/library");
   const [mobile, setMobile] = useState(false);
-  const [create, setCreate] = useState<"upload" | "transcript" | null>(null);
+  const [create, setCreate] = useState<{
+    mode: "upload" | "transcript";
+    courseId: string;
+  } | null>(null);
   const [version, setVersion] = useState(0);
+  const [recordingDraft, setRecordingDraft] = useState<RecordingDraft>();
   const [dirty, setDirty] = useState(false);
   const courses = useResource<Course[]>("/courses", 10000);
   const settings = useResource<SettingsData>("/settings");
@@ -196,16 +200,20 @@ export default function App() {
             {health.error ? "Offline" : "LOCAL"}
           </span>
         </div>
-        {["recording", "stopping", "blocked"].includes(recording.phase) &&
+        {["recording", "paused", "stopping", "blocked"].includes(
+          recording.phase,
+        ) &&
           page !== "record" && (
             <a className="recording-banner" href="#/record">
               <Mic size={17} />
               <strong>
                 {recording.phase === "recording"
                   ? "Recording in progress"
-                  : recording.phase === "blocked"
-                    ? "Recording needs attention"
-                    : "Saving recording"}
+                  : recording.phase === "paused"
+                    ? "Recording paused"
+                    : recording.phase === "blocked"
+                      ? "Recording needs attention"
+                      : "Saving recording"}
               </strong>
               <span>{time(recording.elapsed)}</span>
               <span>
@@ -229,7 +237,12 @@ export default function App() {
           ) : page === "search" ? (
             <Search courses={courseList} />
           ) : page === "record" ? (
-            <Record courses={courseList} settings={settings.data} />
+            <Record
+              courses={courseList}
+              settings={settings.data}
+              initialDraft={recordingDraft}
+              initialCourse={params.get("course") || ""}
+            />
           ) : page === "settings" ? (
             <Settings
               settings={settings.data}
@@ -253,7 +266,7 @@ export default function App() {
             <Library
               key={params.get("course") || "all"}
               courses={courseList}
-              onNew={setCreate}
+              onNew={(mode, courseId) => setCreate({ mode, courseId })}
               version={version}
               initialCourse={params.get("course") || ""}
             />
@@ -264,8 +277,14 @@ export default function App() {
         <LectureForm
           courses={courseList}
           settings={settings.data}
-          initialMode={create}
+          initialMode={create.mode}
+          initialCourse={create.courseId}
           onClose={() => setCreate(null)}
+          onRecord={(draft) => {
+            setRecordingDraft(draft);
+            setCreate(null);
+            window.location.hash = "/record";
+          }}
           onSaved={(lecture) => {
             setCreate(null);
             changed();
