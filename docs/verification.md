@@ -1,5 +1,33 @@
 # Verification record
 
+## v1.0.1 isolated verification
+
+Work and test libraries are isolated from the running v1.0.0 checkout and recording.
+No running-app restart, branch switch, data migration, physical microphone capture,
+paid OpenAI request, or Docker image execution was performed for this branch.
+
+- Python: 300 tests passed; Ruff and Git whitespace checks passed.
+- Frontend: 77 unit tests and 13 Chromium browser tests passed; production build passed.
+- The real API plus production UI smoke passed class creation/resources, preparation,
+  deterministic note generation, manual relevance edits, notes retention across class
+  reassignment/reload, annotations, search, PDF export, and desktop/mobile layouts.
+- Browser screenshot inspection confirmed fit at 1440, 390, and 320 pixels for new controls.
+- Python tests cover full-transcript topic mapping, conservative classifications,
+  cached retries, failure checkpoints, class-resource scoping, real synthetic FFmpeg
+  joins/compression, six-hour eligibility, corruption/cancellation, provenance, and
+  recording/maintenance concurrency. The six-hour threshold is clock-injected;
+  verification does not wait six hours or use a real multi-hour recording.
+- Branch CI includes FFmpeg, frontend/browser tests, production build, and the isolated
+  API smoke. Image publishing intentionally remains restricted to version tags.
+
+Run `npm --prefix web run test:browser` to start and stop an isolated Vite test server
+automatically on port 4175. API traffic and recording inputs in that suite are fixtures.
+For the real-API smoke below, the default isolated test server port is now 8871.
+Whisper's recognition accuracy and GPT-5.4 mini's semantic note quality were not
+re-evaluated with live models; the new inference boundaries are mocked in tests.
+
+## v1.0.0 historical verification
+
 Verified on this Apple Silicon macOS laptop and with GitHub Actions on Ubuntu
 24.04 on September 24, 2026.
 

@@ -19,6 +19,18 @@ async def process(args, settings):
         ) as client:
             if args.resume:
                 lecture_id = args.resume
+                if args.context or args.material:
+                    current = await client.get(f"/api/lectures/{lecture_id}")
+                    current.raise_for_status()
+                    prepared = await client.put(
+                        f"/api/lectures/{lecture_id}/preparation",
+                        json={
+                            "context": args.context or current.json().get("context", ""),
+                            "selected_resource_ids": args.material
+                            or current.json().get("selected_resource_ids", []),
+                        },
+                    )
+                    prepared.raise_for_status()
                 response = await client.post(
                     f"/api/lectures/{lecture_id}/process",
                     json={
@@ -57,6 +69,15 @@ async def process(args, settings):
                 response.raise_for_status()
                 lecture_id = response.json()["id"]
                 print(f"Lecture: {lecture_id}", flush=True)
+                if args.material:
+                    prepared = await client.put(
+                        f"/api/lectures/{lecture_id}/preparation",
+                        json={
+                            "context": args.context,
+                            "selected_resource_ids": args.material,
+                        },
+                    )
+                    prepared.raise_for_status()
                 if args.no_process:
                     return
                 response = await client.post(
@@ -108,7 +129,12 @@ def main(argv=None):
     run.add_argument("file", type=Path, nargs="?")
     run.add_argument("--title")
     run.add_argument("--course", help="Course identifier")
-    run.add_argument("--context", default="")
+    run.add_argument(
+        "--context", default="", help="Recording note required unless class materials are selected"
+    )
+    run.add_argument(
+        "--material", action="append", default=[], help="Class material ID; repeat to select more"
+    )
     run.add_argument("--resume", help="Resume an existing lecture by identifier")
     run.add_argument("--force", action="store_true", help="Regenerate notes")
     run.add_argument("--speakers", action="store_true", help="Run local speaker detection")

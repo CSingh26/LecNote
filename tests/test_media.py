@@ -137,6 +137,44 @@ def test_merge_limits_preserve_sources(library, limits):
     assert repo.list("lectures") == before
 
 
+def test_merge_rejects_unrelated_recording_before_ffmpeg(library, monkeypatch):
+    repo, settings, service = library
+    lecture(library, "a")
+    lecture(library, "b")
+    lecture(library, "live", course_id="other", status="recording")
+    before = repo.list("lectures")
+    originals = {x["media_path"]: Path(x["media_path"]).read_bytes() for x in before}
+    folders = set((settings.data_dir / "lectures").iterdir())
+    monkeypatch.setattr(service, "_run", lambda *a, **kw: pytest.fail("FFmpeg started during recording"))
+    with pytest.raises(MediaBusy):
+        service.merge(["a", "b"])
+    assert repo.list("lectures") == before
+    assert set((settings.data_dir / "lectures").iterdir()) == folders
+    assert all(Path(path).read_bytes() == data for path, data in originals.items())
+
+
+@real_audio
+@pytest.mark.parametrize("hints,transcript_languages,expected", [
+    (("", ""), (None, None), ""),
+    (("es", "es"), (None, None), "es"),
+    (("", "fr"), (None, None), "fr"),
+    (("en", "es"), (None, None), ""),
+    (("unknown", "mixed"), (None, None), ""),
+    (("multi", "invalid"), (None, None), ""),
+    (("", ""), ("en", None), "en"),
+    (("", ""), ("en", "es"), ""),
+    (("", ""), ("mixed", "multi"), ""),
+])
+def test_merge_keeps_only_unambiguous_supported_language_hints(
+    library, hints, transcript_languages, expected,
+):
+    _, _, service = library
+    for identifier, hint, language in zip(("a", "b"), hints, transcript_languages):
+        transcript = None if language is None else {"language": language, "duration": 1, "segments": []}
+        lecture(library, identifier, language=hint, transcript=transcript)
+    assert service.merge(["a", "b"])["language"] == expected
+
+
 def test_persistent_six_hour_eligibility_is_not_reset(library):
     repo, settings, service = library
     original = lecture(library, "a")

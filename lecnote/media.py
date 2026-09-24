@@ -344,8 +344,8 @@ class MediaService:
     def merge(self, lecture_ids, *, title=None, busy_ids=(), job_id=None, cancelled=None):
         """Merge ordered, distinct same-course recordings without modifying inputs.
 
-        Raises MediaBusy for ANY busy input (never silently drops a requested
-        source), MediaError for invalid media/limits, PipelineCancelled if the
+        Raises MediaBusy for ANY active recording or busy input (never silently
+        drops a requested source), MediaError for invalid media/limits, PipelineCancelled if the
         optional zero-argument callback returns True. job_id excludes only the
         caller's own queued/running job. No destination placeholder is required.
         """
@@ -355,6 +355,8 @@ class MediaService:
         if title is not None and (not isinstance(title, str) or not title.strip() or len(title) > 500):
             raise MediaError("Merged recording title must contain 1 to 500 characters")
         _cancel(cancelled)
+        if any(item.get("status") == "recording" for item in self.repo.list("lectures")):
+            raise MediaBusy("Stop all active recordings before merging")
         lectures = [self._lecture(identifier) for identifier in ids]
         course = lectures[0].get("course_id")
         if not course or any(item.get("course_id") != course for item in lectures):
@@ -434,6 +436,12 @@ class MediaService:
             duration=duration,
             segments=segments,
         ).model_dump()
+        # Transcript labels may be descriptive; inference requires a Whisper code.
+        from faster_whisper.tokenizer import _LANGUAGE_CODES
+
+        hints = languages | {item.get("language", "") for item in lectures}
+        supported_hints = hints.intersection(_LANGUAGE_CODES)
+        language = next(iter(supported_hints)) if len(supported_hints) == 1 else ""
         complete = all(item.get("transcript") is not None for item in lectures)
         identifier = str(uuid4())
         folder = self._folder(identifier)
@@ -464,7 +472,7 @@ class MediaService:
                         "media_type": "audio/mp4",
                         "media_path": str(target),
                         "duration": duration,
-                        "language": combined["language"],
+                        "language": language,
                         "transcript": combined if complete else None,
                         "partial_transcript": None if complete else combined,
                         "merge_sources": merge_sources,

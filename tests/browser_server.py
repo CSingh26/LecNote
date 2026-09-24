@@ -12,10 +12,35 @@ from lecnote.config import Settings
 def fixture_pipeline(lecture, settings, progress, cancelled):
     progress("generating", 70, "Creating verification notes")
     transcript = lecture["transcript"]
+    if lecture.get("transcribe_only"):
+        return {"transcript": transcript, "notes": None}
     segment = transcript["segments"][0]
     return {
         "transcript": transcript,
+        "relevance": {
+            "version": "browser-fixture",
+            "topic_map": {"summary": "Energy and motion", "topics": ["Kinetic energy"]},
+            "segments": [
+                {
+                    "segment_id": s["id"],
+                    "start": s["start"],
+                    "end": s["end"],
+                    "text": s["text"],
+                    "category": "course_material",
+                    "reason": "Teaching",
+                    "confidence": 1,
+                    "source": "ai",
+                }
+                for s in transcript["segments"]
+            ],
+            "logistics": [],
+            "usage": {"input_tokens": 0, "output_tokens": 0},
+        },
         "notes": {
+            "provenance": {
+                "context": lecture.get("context", ""),
+                "resource_provenance": lecture.get("resource_provenance", []),
+            },
             "title": lecture["title"],
             "overview": "Kinetic energy describes the energy of motion.",
             "takeaways": ["Doubling speed quadruples kinetic energy."],
@@ -62,4 +87,4 @@ if __name__ == "__main__":
     settings = Settings(data_dir=Path(os.environ["LECNOTE_TEST_DATA"]), api_key="test-fixture")
     app = create_app(settings)
     app.state.jobs.pipeline = fixture_pipeline
-    uvicorn.run(app, host="127.0.0.1", port=8766)
+    uvicorn.run(app, host="127.0.0.1", port=int(os.environ.get("LECNOTE_TEST_PORT", "8871")))

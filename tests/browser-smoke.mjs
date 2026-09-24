@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { chromium } from '../web/node_modules/playwright/index.mjs';
 
-const base = process.env.LECNOTE_TEST_URL || 'http://127.0.0.1:8766';
+const base = process.env.LECNOTE_TEST_URL || 'http://127.0.0.1:8871';
 const output = path.resolve('artifacts/browser');
 await fs.mkdir(output, { recursive: true });
 const microphone = process.env.LECNOTE_TEST_MICROPHONE;
@@ -48,6 +48,10 @@ try {
   await dialog.getByLabel('Transcript file', { exact: true }).setInputFiles(path.resolve('examples/transcript.json'));
   await dialog.getByLabel('Lecture title', { exact: true }).fill(lectureTitle);
   const courses = await (await page.request.get(`${base}/api/courses`)).json();
+  const courseId = courses.find(item => item.name === courseName).id;
+  const classResource = await (await page.request.post(`${base}/api/courses/${courseId}/resources/note`, {
+    data: {name: 'Mechanics study guide', text: 'Energy and momentum. Check units carefully.'},
+  })).json();
   await dialog.getByLabel('Course', { exact: true }).selectOption(courses.find(item => item.name === courseName).id);
   await dialog.getByRole('button', { name: 'Import transcript', exact: true }).click();
   await page.getByRole('heading', { name: lectureTitle, exact: true }).waitFor();
@@ -59,9 +63,19 @@ try {
   await page.getByRole('button', { name: 'Save transcript', exact: true }).click();
   await page.getByText('Dr. Example', { exact: true }).waitFor();
   await page.getByRole('tab', { name: 'Notes', exact: true }).click();
+  await page.getByLabel('Recording note', {exact: true}).fill('Mechanics: energy and momentum');
+  await page.getByRole('checkbox', {name: /Mechanics study guide/}).check();
+  await page.getByRole('button', {name: 'Save preparation', exact: true}).click();
   await page.getByRole('button', { name: 'Generate notes', exact: true }).click();
   await page.getByRole('heading', { name: 'Key takeaways', exact: true }).waitFor({ timeout: 20000 });
   const notesBeforeEdit = (await (await page.request.get(`${base}/api/lectures/${lectureId}`)).json()).notes;
+  assert.equal(notesBeforeEdit.provenance.resource_provenance[0].id, classResource.id);
+  await page.getByRole('tab', {name: 'Relevance', exact: true}).click();
+  await page.getByLabel('Category for segment 0').selectOption('needs_review');
+  await page.getByText('Saved notes may be out of date.', {exact: true}).waitFor();
+  const reviewed = await (await page.request.get(`${base}/api/lectures/${lectureId}`)).json();
+  assert.equal(reviewed.relevance_overrides['0'], 'needs_review');
+  assert.deepEqual(reviewed.notes, notesBeforeEdit);
   const accounting = await (await page.request.post(`${base}/api/courses`, {
     data: { name: `Accounting ${suffix}`, code: 'ACC502' },
   })).json();
@@ -104,7 +118,7 @@ try {
   await download.saveAs(`${output}/lecture.pdf`);
   assert.equal((await fs.readFile(`${output}/lecture.pdf`)).subarray(0, 5).toString(), '%PDF-');
   await page.getByRole('navigation').getByRole('link', { name: 'Search', exact: true }).click();
-  const searchBox = page.locator('main input[type="search"],main input[placeholder*="Search"]').first();
+  const searchBox = page.getByRole('textbox', {name: 'Search all lectures', exact: true});
   await searchBox.fill('velocity');
   await searchBox.press('Enter');
   await page.getByText(/velocity squared/).first().waitFor();

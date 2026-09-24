@@ -6,6 +6,7 @@ IDs are UUID strings, times ISO UTC strings, durations seconds, progress 0..100.
 ## Data
 
 Course: `{id,name,code,color,context,vocabulary,created_at,lecture_count}`.
+Courses additionally accept `optimize_recordings:bool|null`; null inherits the workspace.
 Lecture: `{id,course_id,title,source_name,media_type,status,duration,created_at,
 updated_at,context,language,transcript,notes,user_notes,attachments,error,job}`.
 List responses may omit transcript/notes/attachments but include course_name,
@@ -16,10 +17,14 @@ Transcript: `{language:string,duration:float,segments:Segment[]}`.
 Job: `{id,lecture_id,status,stage,progress,message,error,created_at,updated_at}`.
 Job statuses queued/running/completed/failed/cancelled/interrupted.
 Attachment: `{id,name,kind,text,url,created_at,error}`.
+Class resource: `{id,course_id,name,kind,text,url,revision,created_at,updated_at,error}`.
+Lecture additions: `selected_resource_ids`, `preparation_ready`, `relevance`,
+`relevance_overrides`, `resource_provenance`, `finalized_at`, `compression`,
+`merge_sources`, `segment_sources`, and optional `source_bytes`.
 
 Notes: `{title,overview,takeaways:string[],glossary:Definition[],
 review_questions:Question[],chunks:ChunkNote[],usage:{input_tokens,output_tokens},
-model:string}`.
+model:string,provenance:{context,course_context,resource_provenance}}`.
 Definition: `{term,definition}`. Question: `{question,answer}`.
 ChunkNote: `{index,start,end,title,summary,key_points:Point[],definitions:Definition[],
 formulas:Formula[],examples:string[],emphasized_points:string[],
@@ -33,10 +38,16 @@ x_label:string,y_label:string,image:string|null}`.
 - GET `/health` -> `{status:'ok'}`.
 - GET `/courses` -> Course[]; POST `/courses` body `{name,code?,color?,context?,vocabulary?}` -> Course.
 - PATCH `/courses/{id}` partial fields; DELETE only empty courses -> 204.
+- GET `/courses/{id}/resources?q=` -> searchable Class resource[].
+- POST `/courses/{id}/resources` multipart `file` -> Class resource (201).
+- POST `/courses/{id}/resources/note` `{name,text}` -> typed Class resource (201).
+- PATCH/DELETE `/courses/{id}/resources/{resource_id}`; PATCH `{name?,text?}`,
+  where text editing is limited to typed notes. Busy references return 409.
+- GET `/courses/{id}/resources/{resource_id}/file` -> original file with immutable MIME type.
 - GET `/lectures?course_id=&q=` -> Lecture[].
 - POST `/lectures` multipart `file`, `title`, optional `course_id`, `context`,
   `language`, `process` ('true' default) -> Lecture. Supports wav/mp3/m4a/mp4/
-  webm/ogg/flac/mov/aac. Returns queued job or draft.
+  webm/ogg/flac/mov/aac. Returns local-transcription-only queued job or draft.
 - POST `/lectures/import` JSON `{title,course_id?,context?,transcript:Transcript}` -> Lecture draft.
 - GET/PATCH/DELETE `/lectures/{id}`. PATCH `{title?,course_id?,context?,user_notes?}`.
   Actual title/course/context changes preserve notes and set `notes_stale:true`
@@ -45,13 +56,24 @@ x_label:string,y_label:string,image:string|null}`.
 - PUT `/lectures/{id}/transcript` Transcript -> Lecture, rejects active jobs;
   marks saved notes stale on changes, preserves notes and user_notes.
 - POST `/lectures/{id}/process` JSON `{force?:bool,diarize?:bool,transcribe_only?:bool}` -> Job.
+  Note generation requires nonblank recording context or selected readable class resources.
+  Missing preparation returns 422 before any AI request; transcribe_only bypasses this gate.
   Omitted diarize inherits the setting. Transcription-only preserves existing notes,
   marking them stale if the transcript changes, or completes as a draft if no notes exist. Successful note generation
   replaces notes and clears `notes_stale`. Failures keep the previous notes.
   On startup, valid saved `notes.json` files repair missing database notes; recovered
   notes are marked stale and never overwrite an existing database copy.
 - POST `/lectures/{id}/cancel` -> Job.
-- GET `/lectures/{id}/media` -> range-enabled original media or finalized WAV.
+- PUT `/lectures/{id}/preparation` `{context,selected_resource_ids}` -> Lecture.
+  Maximum 50 unique selections; only resources from the assigned class are allowed.
+- PUT `/lectures/{id}/relevance` `{overrides:{segment_id:category}}` -> Lecture.
+  Categories: course_material, class_logistics, off_topic, needs_review. Replaces the
+  override map, preserves transcript/notes, and marks notes stale. Unknown IDs reject.
+- POST `/lectures/merge` `{title,lecture_ids:[ordered IDs]}` -> new Lecture (201).
+  Synchronous local conversion in a thread pool. Two to twenty distinct same-class
+  finalized sources; six hours and 4 GiB combined input maximum. Missing transcript
+  parts queue local transcription only. Originals are preserved. Busy inputs return 409.
+- GET `/lectures/{id}/media` -> range-enabled current media, including optimized M4A.
 - GET `/lectures/{id}/notes` -> Notes or 404.
 - PUT `/lectures/{id}/notes` body `{user_notes:string}` -> Lecture.
 - POST `/lectures/{id}/attachments` multipart `file` -> Attachment.
@@ -66,6 +88,7 @@ x_label:string,y_label:string,image:string|null}`.
   diarization,api_key_configured,hf_token_configured,input_price_per_million,
   output_price_per_million,capabilities:{whisper,ffmpeg,ocr,diarization}}`.
 - PUT `/settings` same configurable fields plus optional `api_key` and `hf_token`;
+  includes `optimize_recordings:bool` (default true).
   omit secrets to retain; empty string clears saved secret. Never returns secrets.
 - POST `/settings/check` -> `{ok:bool,message:string}` (local configuration only).
 - POST `/live` JSON `{title,course_id?,language?,context?}` -> `{id,lecture_id}` (same IDs).
@@ -74,23 +97,24 @@ x_label:string,y_label:string,image:string|null}`.
   `sequence` nonnegative integer, `offset` seconds -> `{accepted:true}`.
   Queue local transcription without blocking request. GET lecture includes segments.
 - POST `/live/{id}/finish` -> Lecture; combines WAV chunks in sequence order,
-  queues full pipeline after outstanding live chunks finish. Without a configured
-  OpenAI key, saves local transcription only; notes can be generated later.
+  queues local transcription only after outstanding live chunks finish, even when
+  an OpenAI key exists. Prepared notes require a separate explicit process request.
 
 ## Python boundaries
 
 Settings is in `lecnote.config`; dataclass-like attributes:
-`data_dir:Path`, `model:str` (default gpt-4.1-mini), `api_key:str`,
+`data_dir:Path`, `model:str` (default gpt-5.4-mini), `api_key:str`,
 `whisper_model:str` (base), `chunk_minutes:float` (8), `parallel_requests:int` (4),
 `language:str` (empty=auto), `diarization:bool`, `hf_token:str`,
 `input_price_per_million:float`, `output_price_per_million:float` (zero=unset).
 `settings.lecture_dir(id)` returns data_dir/lectures/id.
 
 `run_pipeline(lecture:dict, settings:Settings, progress:Callable[[str,float,str],None],
-is_cancelled:Callable[[],bool]) -> dict` in pipeline.py.
+is_cancelled:Callable[[],bool], checkpoint:Callable[[dict],None]|None=None) -> dict` in pipeline.py.
 Lecture input includes `id,title,context,course_context,vocabulary,media_path`,
 `transcript` (dict|null), `attachments` with extracted `text`, and `diarize`.
-Return `{transcript:dict,notes:dict}`. Raise `PipelineCancelled` for cancel.
+Return `{transcript:dict,notes:dict|null,relevance?:dict}`. Raise `PipelineCancelled` for cancel.
+Checkpoint hooks persist completed transcript/relevance stages before later failures.
 Persist transcript.json and each notes chunk atomically under lecture_dir.
 `transcribe(path:Path,settings:Settings,vocabulary:str='',progress=None)->dict`
 in transcription.py. No upload/transcription API usage.

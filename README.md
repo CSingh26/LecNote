@@ -1,6 +1,6 @@
 # LecNote
 
-## v1.0.1 development
+## v1.0.1 branch
 
 Development is isolated on branch `v1.0.1`; the existing v1.0.0 app remains unchanged.
 Class libraries now store reusable local materials and typed notes. Recording/import
@@ -17,6 +17,8 @@ storage, saved lecture preparation, and the source history for generated notes.
 The Library can merge ordered recording parts; the lecture Relevance tab supports
 filters and manual classifications. Compression status and workspace/class
 preferences are available without changing the running v1.0.0 app.
+See [the v1.0.1 guide](docs/v1.0.1.md) for the workflow, limits, privacy, and
+upgrade precautions. This branch has not been merged into main or tagged for release.
 
 A local lecture library with Whisper transcription, OpenAI study notes, and a
 browser workspace. The combined MVP/v1/v2 implementation includes courses,
@@ -47,14 +49,16 @@ on this laptop. Speaker detection still needs model access and a Hugging Face to
 The library starts empty. Create a course, import a lecture, or start a recording.
 Transcript-only imports also work. Local transcription is saved even if OpenAI
 generation fails, so the transcript can be reviewed and the job resumed later.
-Stopping a live recording without an OpenAI key saves its local transcript;
-generate notes later after adding a key.
+Stopping a live recording always saves and transcribes locally, even with an
+OpenAI key. Add a recording note or select class resources, save preparation,
+then explicitly generate notes.
 
 ## Install on another machine
 
 Requires Python 3.11-3.13 and Node.js 20.19+ or 22+. Python 3.14 is not supported
-by this project's dependency range. FFmpeg is useful for additional media
-formats and optional speaker detection. Core Whisper decoding uses PyAV.
+by this project's dependency range. FFmpeg and ffprobe are required for recording
+merges and automatic compression, and for optional speaker detection.
+Core Whisper decoding uses PyAV.
 
 ```sh
 python3.12 -m venv .venv
@@ -107,6 +111,10 @@ a container on your laptop.
 | Courses | Context and vocabulary, lecture organization, glossary |
 | Live recording | Microphone, shared lecture audio, or both mixed together; local transcription and saved full WAV recording |
 | Materials | Local text/PDF extraction and image OCR; original files remain local |
+| Class resources | Searchable reusable materials and typed notes; explicit per-lecture selection |
+| Relevance | Full-lecture topic mapping, timestamped categories, manual overrides, separate logistics |
+| Recording merges | 2-20 same-class parts, ordered compact M4A, source provenance, originals preserved |
+| Compression | Eligible 6 hours after finalization, local idle worker, validated smaller replacement, opt-out |
 | Recovery | Completed transcription and note chunks cached; failed/cancelled/interrupted jobs can resume |
 | Exports | Markdown, standalone HTML, PDF, and JSON; includes personal annotations |
 | Usage | Input/output token counts, optional estimates from user-supplied per-million prices |
@@ -115,6 +123,9 @@ The default note model is `gpt-5.4-mini` with low reasoning effort; saved custom
 model selections remain unchanged. Choose another Responses-compatible
 Structured Outputs model in Settings or `LN_MODEL`. Approximately eight-minute
 chunks generate up to four at a time; only one lecture pipeline runs at once.
+Relevance adds analysis calls; bounded excerpts, compact hierarchical summaries,
+and local content-keyed caches limit repeated input. This does not guarantee a
+lower bill than v1.0.0. No custom saved model is silently upgraded.
 Changing source text, context, model, prompt, or chunk settings invalidates
 dependent caches. Force regeneration makes new note requests and may cost more.
 Completed cache usage describes the saved notes, not an account billing ledger.
@@ -192,10 +203,10 @@ use the `tesseract` executable if installed. No images are sent to OpenAI.
 
 ```sh
 .venv/bin/lecnote check
-.venv/bin/lecnote process lecture.m4a --title "Lecture 1"
+.venv/bin/lecnote process lecture.m4a --title "Lecture 1" --context "Today's class covers inventory valuation"
 .venv/bin/lecnote process lecture.m4a --transcribe-only
 .venv/bin/lecnote process transcript.json --title "Lecture 2" --no-process
-.venv/bin/lecnote process --resume LECTURE_ID
+.venv/bin/lecnote process --resume LECTURE_ID --material CLASS_RESOURCE_ID
 .venv/bin/lecnote --data-dir ./another-library serve --port 8766
 ```
 
@@ -208,6 +219,7 @@ cache as the Web UI. The API contract is in `docs/api-contract.md`.
 
 `data/library.sqlite3` stores the library and jobs. `data/lectures/<id>/` holds
 source files, transcripts, content-keyed caches, generated assets, and exports.
+`data/resources/<id>/` holds reusable class material originals.
 `data/settings.json` stores settings with owner-only file permissions on macOS
 and Linux. Keep your library backed up; none of it is committed to Git.
 Settings can also begin from the variables listed in `.env.example`.
@@ -224,11 +236,14 @@ See [OpenAI's Responses guidance](https://developers.openai.com/api/docs/guides/
 .venv/bin/ruff check lecnote tests
 npm --prefix web test
 npm --prefix web run build
+npm --prefix web run test:browser
 ```
 
 Tests use temporary local libraries and fake only external inference boundaries.
 They never make paid OpenAI calls. Real local Whisper and Apple Vision smoke
-checks were also performed. An actual OpenAI generation run still needs a user
+checks were performed for v1.0.0. v1.0.1 adds synthetic FFmpeg and isolated API/UI
+checks, without accessing an active recording or physical microphone.
+An actual OpenAI generation run still needs a user
 API key; no live OpenAI call is claimed as tested.
 See [the verification record](docs/verification.md) for test scope and browser checks.
 

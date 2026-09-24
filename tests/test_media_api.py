@@ -3,6 +3,7 @@ import shutil
 import threading
 import wave
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -62,6 +63,68 @@ def test_course_storage_preference_can_return_to_inherited(tmp_path):
         course = client.post("/api/courses", json={"name": "ACC502", "optimize_recordings": False}).json()
         response = client.patch(f"/api/courses/{course['id']}", json={"optimize_recordings": None})
         assert response.json()["optimize_recordings"] is None
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="FFmpeg required for real merge")
+def test_untranscribed_merge_autoqueues_worker_with_language_autodetect(tmp_path, monkeypatch):
+    app = create_app(Settings(data_dir=tmp_path), start_worker=False)
+    languages = []
+
+    def transcribe(path, settings, **kwargs):
+        languages.append(settings.language)
+        assert settings.language == ""
+        return {"language": "en", "duration": 2, "segments": [
+            {"id": 0, "start": 0, "end": 2, "text": "Recovered lecture"},
+        ]}
+
+    monkeypatch.setattr("lecnote.pipeline.transcribe", transcribe)
+    with TestClient(app) as client:
+        course = client.post("/api/courses", json={"name": "Class"}).json()
+        ids = [client.post(
+            "/api/lectures", files={"file": ("recording.wav", audio())},
+            data={"title": title, "course_id": course["id"], "process": "false"},
+        ).json()["id"] for title in ("First", "Second")]
+        response = client.post("/api/lectures/merge", json={"title": "Merged", "lecture_ids": ids})
+        assert response.status_code == 201, response.text
+        merged = response.json()
+        assert merged["transcript"] is None
+        job = merged["job"]
+        assert job["status"] == "queued"
+        app.state.jobs._run(job["id"])
+        assert languages == [""]
+        assert app.state.repo.get("jobs", job["id"])["status"] == "completed"
+        saved = app.state.repo.get("lectures", merged["id"])
+        assert saved["language"] == ""
+        assert saved["transcript"]["segments"][0]["text"] == "Recovered lecture"
+        assert saved["partial_transcript"] is None
+
+
+@pytest.mark.parametrize("cancelled", [False, True])
+def test_merge_api_rejects_unrelated_live_recording_without_mutation(tmp_path, monkeypatch, cancelled):
+    app = create_app(Settings(data_dir=tmp_path), start_worker=False)
+    with TestClient(app) as client:
+        course = client.post("/api/courses", json={"name": "Class"}).json()
+        ids = [client.post(
+            "/api/lectures", files={"file": ("recording.wav", audio())},
+            data={"title": title, "course_id": course["id"], "process": "false"},
+        ).json()["id"] for title in ("First", "Second")]
+        live = client.post("/api/live", json={"title": "Unrelated live lecture"}).json()
+        if cancelled:
+            app.state.repo.create("jobs", {"lecture_id": live["id"], "status": "running"})
+            assert client.post(f"/api/lectures/{live['id']}/cancel").status_code == 200
+        before = app.state.repo.list("lectures")
+        assert app.state.repo.get("lectures", live["id"])["status"] == "recording"
+        originals = {x["media_path"]: Path(x["media_path"]).read_bytes() for x in before if x.get("media_path")}
+        jobs = app.state.repo.list("jobs")
+        folders = set((tmp_path / "lectures").iterdir())
+        monkeypatch.setattr("lecnote.media.MediaService._run",
+                            lambda *a, **kw: pytest.fail("FFmpeg started during recording"))
+        response = client.post("/api/lectures/merge", json={"title": "Merged", "lecture_ids": ids})
+        assert response.status_code == 409, response.text
+        assert app.state.repo.list("lectures") == before
+        assert app.state.repo.list("jobs") == jobs
+        assert set((tmp_path / "lectures").iterdir()) == folders
+        assert all(Path(path).read_bytes() == data for path, data in originals.items())
 
 
 def test_maintenance_skips_all_recording_and_pending_work(tmp_path, monkeypatch):
