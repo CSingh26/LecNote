@@ -84,6 +84,5 @@ The build reports large JavaScript chunks from the math/diagram dependencies.
 The Python suite reports a Starlette/httpx test-client deprecation warning.
 Neither warning blocks the verified workflows.
 
-The available GitHub login cannot create workflow files. CI is therefore supplied
-as `docs/github-actions-checks.yml`, not enabled remotely. An authorized account
-can place that template at `.github/workflows/checks.yml` to enable the checks.
+The v1.0.0 release workflow runs Python and frontend checks on GitHub-hosted
+Linux runners. Tagged runs publish the container after the checks pass.

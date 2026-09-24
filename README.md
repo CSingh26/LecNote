@@ -6,6 +6,14 @@ recording imports, live microphone capture, timestamp-linked playback,
 transcript correction, local slide/whiteboard extraction, review questions,
 search, course glossary, resumable jobs, and Markdown/HTML/PDF/JSON exports.
 
+## v1.0.0 release
+
+The public v1.0.0 release includes the desktop-first Web UI, microphone and
+shared-lecture audio recording with pause/resume, local Whisper transcription,
+course-linked notes, and exports. GitHub Actions runs the Python and frontend
+checks on pushes and pull requests. Version tags build a container image and
+publish it to [GHCR](https://github.com/CSingh26/LecNote/pkgs/container/lecnote).
+
 ## Run on this laptop
 
 ```sh
@@ -49,6 +57,26 @@ optional speaker-detection dependencies.
 For frontend development, run the Python server on port 8765 and
 `npm --prefix web run dev` in another terminal. Vite forwards `/api` to the local
 server. The production build is served directly by Python without Node running.
+
+### Container image
+
+The image bundles the Web UI, Python server, FFmpeg, Tesseract OCR, and the
+local Whisper runtime. It stores the library and downloaded model weights in
+`/data`. To use the published image, bind the web port to your own computer and
+keep `/data` in a persistent volume:
+
+```sh
+docker run --rm -p 127.0.0.1:8765:8765 -v lecnote-data:/data ghcr.io/csingh26/lecnote:1.0.0
+```
+
+Open [LecNote](http://127.0.0.1:8765) and add your OpenAI API key in Settings
+when you want generated notes. The image does not contain keys or Whisper model
+weights; the selected model downloads to `/data/models` on first use. Allow
+Docker enough memory for local transcription. The container uses Linux OCR, so
+macOS Apple Vision is only available with the direct laptop install. Speaker
+detection is an optional direct-install dependency and is not in this image.
+The image is built in GitHub Actions; building or publishing it does not start
+a container on your laptop.
 
 ## Features and limits
 

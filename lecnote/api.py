@@ -71,7 +71,7 @@ def create_app(settings: Settings | None = None, start_worker=True):
         yield
         manager.close()
 
-    app = FastAPI(title="LecNote", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="LecNote", version="1.0.0", lifespan=lifespan)
     app.state.repo, app.state.settings, app.state.jobs = repo, settings, manager
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"])
 

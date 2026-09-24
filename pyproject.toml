@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lecnote"
-version = "0.1.0"
+version = "1.0.0"
 description = "Local lecture transcription and OpenAI study notes"
 requires-python = ">=3.11,<3.14"
 dependencies = [
