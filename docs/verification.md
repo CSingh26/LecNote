@@ -1,6 +1,7 @@
 # Verification record
 
-Verified on this Apple Silicon macOS laptop on September 24, 2026.
+Verified on this Apple Silicon macOS laptop and with GitHub Actions on Ubuntu
+24.04 on September 24, 2026.
 
 ## Automated checks
 
@@ -76,13 +77,15 @@ path. Artifacts and screenshots are under ignored `artifacts/browser/`.
 ## Limits
 
 No live OpenAI call was made: note generation still needs an OpenAI API key.
-No physical classroom recording, multi-hour workload, Safari/Firefox run, or
-Windows/Linux runtime was tested. Small Whisper models can mishear numerical
-expressions; review important formulas against the recording.
+No physical classroom recording, multi-hour workload, Safari/Firefox run,
+Windows runtime, or live Linux recording/inference was tested. Small Whisper
+models can mishear numerical expressions; review important formulas against the
+recording.
 
 The build reports large JavaScript chunks from the math/diagram dependencies.
 The Python suite reports a Starlette/httpx test-client deprecation warning.
 Neither warning blocks the verified workflows.
 
-The v1.0.0 release workflow runs Python and frontend checks on GitHub-hosted
-Linux runners. Tagged runs publish the container after the checks pass.
+The v1.0.0 release workflow passed Python and frontend checks on a GitHub-hosted
+Ubuntu 24.04 runner. Its tagged run built and published the container image.
+The image was built but not run locally or on the GitHub runner.

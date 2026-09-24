@@ -49,8 +49,9 @@ npm --prefix web run build
 
 On Windows, use `.venv\Scripts\python.exe` and `.venv\Scripts\lecnote.exe`.
 `requirements.lock` records the tested Python package versions; `web/package-lock.json`
-locks the frontend dependencies. macOS is verified; Windows/Linux code paths
-are implemented but have not been exercised on those operating systems.
+locks the frontend dependencies. macOS workflows are verified, and the automated
+suite passes on Ubuntu 24.04 in GitHub Actions. Windows and live Linux
+recording/inference have not been exercised.
 `requirements-speakers.lock` records the tested environment including the
 optional speaker-detection dependencies.
 
