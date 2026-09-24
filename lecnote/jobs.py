@@ -183,6 +183,10 @@ class JobManager:
                     values["transcript"] = None
                 lecture = self.repo.update("lectures", lecture_id, values)
             course = self.repo.get("courses", lecture.get("course_id")) or {}
+            if not job.get("transcribe_only"):
+                from .resources import generation_inputs
+
+                lecture = generation_inputs(self.repo, lecture)
             lecture.update(
                 course_context=course.get("context", ""),
                 vocabulary=course.get("vocabulary", ""),
@@ -201,6 +205,7 @@ class JobManager:
                     {
                         "transcript": result["transcript"],
                         "notes": saved_notes,
+                        "resource_provenance": lecture.get("resource_provenance", []),
                         "notes_stale": False
                         if result["notes"]
                         else bool(saved_notes)

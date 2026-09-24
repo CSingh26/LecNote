@@ -11,7 +11,7 @@ def now():
 
 
 class Repository:
-    TABLES = {"courses", "lectures", "jobs"}
+    TABLES = {"courses", "lectures", "jobs", "resources"}
 
     def __init__(self, path: Path):
         self.path = Path(path)

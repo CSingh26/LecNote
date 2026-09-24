@@ -1,5 +1,14 @@
 # LecNote
 
+## v1.0.1 development
+
+Development is isolated on branch `v1.0.1`; the existing v1.0.0 app remains unchanged.
+Class libraries now store reusable local materials and typed notes. Recording/import
+processing only transcribes locally. AI notes require a recording note or explicitly
+selected readable resources from the lecture's class, followed by Generate notes.
+Full-lecture relevance, compact recording merges, and six-hour audio optimization
+are the next milestones on this branch.
+
 A local lecture library with Whisper transcription, OpenAI study notes, and a
 browser workspace. The combined MVP/v1/v2 implementation includes courses,
 recording imports, live microphone capture, timestamp-linked playback,

@@ -121,6 +121,7 @@ def test_upload_uses_server_filename_and_unsupported_file_rejected(client):
 
 def test_queue_deduplicates_and_cancel_preserves_transcript(client):
     lecture = imported(client).json()
+    client.patch(f"/api/lectures/{lecture['id']}", json={"context": "Energy and momentum"})
     first = client.post(f"/api/lectures/{lecture['id']}/process", json={}).json()
     second = client.post(f"/api/lectures/{lecture['id']}/process", json={}).json()
     assert first["id"] == second["id"]
@@ -338,11 +339,12 @@ def test_finish_recording_without_key_queues_local_transcription_only(client, ap
     assert response.status_code == 200
     job = response.json()["job"]
     assert job["live_finish"] is True
-    assert job["transcribe_only"] is (not bool(api_key))
+    assert job["transcribe_only"] is True
 
 
 def test_resume_interrupted_recording_assembles_audio_even_with_live_transcript(client):
     lecture = imported(client).json()
+    client.patch(f"/api/lectures/{lecture['id']}", json={"context": "Energy and momentum"})
     repo = client.app.state.repo
     repo.update("lectures", lecture["id"], {"status": "interrupted"})
     repo.add_chunk(lecture["id"], 0, {"sequence": 0, "path": "saved.wav"})
@@ -382,9 +384,11 @@ def test_invalid_json_export_format_is_not_served_as_web_page(client):
 def test_processing_inherits_speaker_preference_unless_overridden(client):
     client.put("/api/settings", json={"diarization": True})
     first = imported(client).json()
+    client.patch(f"/api/lectures/{first['id']}", json={"context": "Energy and momentum"})
     job = client.post(f"/api/lectures/{first['id']}/process", json={}).json()
     assert job["diarize"] is True
     second = imported(client, "No speakers").json()
+    client.patch(f"/api/lectures/{second['id']}", json={"context": "Energy and momentum"})
     job = client.post(f"/api/lectures/{second['id']}/process", json={"diarize": False}).json()
     assert job["diarize"] is False
 

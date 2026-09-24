@@ -28,6 +28,7 @@ from .requests import (
     SettingsInput,
     TranscriptInput,
 )
+from .resources import generation_inputs, install_resources, preparation_ready
 
 MEDIA = {
     ".wav": "audio/wav",
@@ -142,6 +143,8 @@ def create_app(settings: Settings | None = None, start_worker=True):
                     pass
         value["segment_count"] = len((value.get("transcript") or {}).get("segments", []))
         value["attachment_count"] = len(value.get("attachments", []))
+        value["selected_resource_ids"] = lecture.get("selected_resource_ids", [])
+        value["preparation_ready"] = preparation_ready(repo, lecture)
         if brief:
             for key in ("transcript", "notes", "attachments", "user_notes"):
                 value.pop(key, None)
@@ -204,10 +207,13 @@ def create_app(settings: Settings | None = None, start_worker=True):
 
     @app.delete("/api/courses/{course_id}", status_code=204)
     def delete_course(course_id: str):
-        check_course(course_id)
-        if any(item.get("course_id") == course_id for item in repo.list("lectures")):
-            raise HTTPException(409, "Move or delete this course's lectures first")
-        repo.delete("courses", course_id)
+        with manager.lock:
+            check_course(course_id)
+            if any(item.get("course_id") == course_id for item in repo.list("lectures")):
+                raise HTTPException(409, "Move or delete this course's lectures first")
+            if any(item.get("course_id") == course_id for item in repo.list("resources")):
+                raise HTTPException(409, "Remove this course's materials first")
+            repo.delete("courses", course_id)
 
     @app.get("/api/lectures")
     def lectures(course_id: str = "", q: str = ""):
@@ -253,7 +259,7 @@ def create_app(settings: Settings | None = None, start_worker=True):
             shutil.rmtree(folder, ignore_errors=True)
             raise
         if process:
-            manager.enqueue(lecture["id"], diarize=settings.diarization)
+            manager.enqueue(lecture["id"], diarize=settings.diarization, transcribe_only=True)
         return public_lecture(get_lecture(lecture["id"]))
 
     @app.post("/api/lectures/import", status_code=201)
@@ -290,6 +296,9 @@ def create_app(settings: Settings | None = None, start_worker=True):
                 values[key] != current.get(key) for key in values.keys() & {"title", "course_id", "context"}
             ):
                 values.update(outdated_notes(current))
+                values["relevance"] = None
+            if "course_id" in values and values["course_id"] != current.get("course_id"):
+                values["selected_resource_ids"] = []
             return public_lecture(repo.update("lectures", lecture_id, values))
 
     @app.delete("/api/lectures/{lecture_id}", status_code=204)
@@ -320,6 +329,8 @@ def create_app(settings: Settings | None = None, start_worker=True):
                         **(outdated_notes(current) if transcript != current.get("transcript") else {}),
                         "error": None,
                         "transcript_edited": True,
+                        "relevance": None,
+                        "relevance_overrides": {},
                     },
                 )
             )
@@ -329,6 +340,11 @@ def create_app(settings: Settings | None = None, start_worker=True):
         value = get_lecture(lecture_id)
         if value["status"] == "recording":
             raise HTTPException(409, "Finish recording before generating notes")
+        if not body.transcribe_only:
+            try:
+                generation_inputs(repo, value)
+            except ValueError as exc:
+                raise HTTPException(422, str(exc)) from exc
         diarize = settings.diarization if body.diarize is None else body.diarize
         if not value.get("media_path") and repo.list_chunks(lecture_id):
             return manager.enqueue(
@@ -616,9 +632,11 @@ def create_app(settings: Settings | None = None, start_worker=True):
                 lecture_id,
                 diarize=settings.diarization,
                 live_finish=True,
-                transcribe_only=not bool(settings.api_key),
+                transcribe_only=True,
             )
             return public_lecture(get_lecture(lecture_id))
+
+    install_resources(app, repo, settings, manager, check_course, editable, public_lecture, save_upload)
 
     web = Path(__file__).resolve().parent.parent / "web" / "dist"
     if (web / "assets").exists():
@@ -632,7 +650,8 @@ def create_app(settings: Settings | None = None, start_worker=True):
             return FileResponse(web / "index.html", headers={"Cache-Control": "no-store"})
         return Response(
             "LecNote API is running. Build the Web UI with npm run build in web/.",
-            media_type="text/plain", headers={"Cache-Control": "no-store"},
+            media_type="text/plain",
+            headers={"Cache-Control": "no-store"},
         )
 
     return app

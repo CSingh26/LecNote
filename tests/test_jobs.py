@@ -20,7 +20,7 @@ def test_restart_marks_unfinished_jobs_interrupted(tmp_path):
 
 def test_job_persists_progress_and_result(tmp_path):
     repo = Repository(tmp_path / "library.sqlite3")
-    repo.create("lectures", {"id": "lecture", "title": "Test", "status": "draft"})
+    repo.create("lectures", {"id": "lecture", "title": "Test", "status": "draft", "context": "Test topic"})
     done = threading.Event()
 
     def pipeline(lecture, settings, progress, is_cancelled):
@@ -127,7 +127,10 @@ def test_live_duration_includes_small_whisper_timestamp_overruns(tmp_path, monke
 def test_existing_notes_survive_until_successful_replacement(tmp_path, mode):
     repo = Repository(tmp_path / "library.sqlite3")
     old = {"title": "Saved notes"}
-    repo.create("lectures", {"id": "lecture", "status": "ready", "notes": old, "notes_stale": True})
+    repo.create(
+        "lectures",
+        {"id": "lecture", "status": "ready", "notes": old, "notes_stale": True, "context": "Test topic"},
+    )
 
     def pipeline(*args):
         if mode == "fail":
