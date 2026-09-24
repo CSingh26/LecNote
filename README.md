@@ -1,8 +1,8 @@
 # LecNote
 
-## v1.0.1 branch
+## v1.0.1 release
 
-Development is isolated on branch `v1.0.1`; the existing v1.0.0 app remains unchanged.
+LecNote v1.0.1 adds a class-centered study workflow.
 Class libraries now store reusable local materials and typed notes. Recording/import
 processing only transcribes locally. AI notes require a recording note or explicitly
 selected readable resources from the lecture's class, followed by Generate notes.
@@ -16,9 +16,10 @@ original only after full audio validation. The Web UI now includes class resourc
 storage, saved lecture preparation, and the source history for generated notes.
 The Library can merge ordered recording parts; the lecture Relevance tab supports
 filters and manual classifications. Compression status and workspace/class
-preferences are available without changing the running v1.0.0 app.
+preferences are available in the Web UI.
 See [the v1.0.1 guide](docs/v1.0.1.md) for the workflow, limits, privacy, and
-upgrade precautions. This branch has not been merged into main or tagged for release.
+upgrade precautions. Save any active recording and back up the library before
+updating or restarting an existing installation.
 
 A local lecture library with Whisper transcription, OpenAI study notes, and a
 browser workspace. The combined MVP/v1/v2 implementation includes courses,
@@ -26,9 +27,9 @@ recording imports, live microphone capture, timestamp-linked playback,
 transcript correction, local slide/whiteboard extraction, review questions,
 search, course glossary, resumable jobs, and Markdown/HTML/PDF/JSON exports.
 
-## v1.0.0 release
+## Core features
 
-The public v1.0.0 release includes the desktop-first Web UI, microphone and
+The app includes the desktop-first Web UI, microphone and
 shared-lecture audio recording with pause/resume, local Whisper transcription,
 course-linked notes, and exports. GitHub Actions runs the Python and frontend
 checks on pushes and pull requests. Version tags build a container image and
@@ -89,7 +90,7 @@ local Whisper runtime. It stores the library and downloaded model weights in
 keep `/data` in a persistent volume:
 
 ```sh
-docker run --rm -p 127.0.0.1:8765:8765 -v lecnote-data:/data ghcr.io/csingh26/lecnote:1.0.0
+docker run --rm -p 127.0.0.1:8765:8765 -v lecnote-data:/data ghcr.io/csingh26/lecnote:1.0.1
 ```
 
 Open [LecNote](http://127.0.0.1:8765) and add your OpenAI API key in Settings
