@@ -107,3 +107,32 @@ it("does not fetch or poll lecture details while recording", async () => {
 
   expect(requests).toEqual([]);
 });
+
+it("offers pause alongside stop while recording", () => {
+  render(<Record courses={[]} />);
+  expect(screen.getByRole("button", { name: "Pause recording" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Stop & save" })).toBeEnabled();
+  expect(
+    screen.queryByRole("button", { name: "Resume recording" }),
+  ).not.toBeInTheDocument();
+});
+
+it("keeps the lecture protected and offers resume or save while paused", () => {
+  vi.mocked(recording.useRecorder).mockReturnValue({
+    ...recording.useRecorder(),
+    phase: "paused",
+    signal: [],
+  });
+  render(<Record courses={[]} />);
+  expect(screen.getByText("Paused", { exact: true })).toBeInTheDocument();
+  expect(screen.getByText("0:30")).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Resume recording" }),
+  ).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Stop & save" })).toBeEnabled();
+  expect(screen.getByLabelText("Recording title")).toBeDisabled();
+  expect(
+    screen.queryByRole("button", { name: "Start recording" }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText("Live transcript")).not.toBeInTheDocument();
+});

@@ -6,11 +6,17 @@ class PCMChunkProcessor extends AudioWorkletProcessor {
     this.total = 0;
     this.lastMeter = 0;
     this.stopped = false;
+    this.paused = false;
     this.port.onmessage = (event) => {
       if (event.data === "flush") {
         this.stopped = true;
         this.flush();
         this.port.postMessage({ type: "flushed" });
+      } else if (!this.stopped && event.data === "pause") {
+        this.paused = true;
+        this.flush();
+      } else if (!this.stopped && event.data === "resume") {
+        this.paused = false;
       }
     };
   }
@@ -22,6 +28,7 @@ class PCMChunkProcessor extends AudioWorkletProcessor {
   }
   process(inputs) {
     if (this.stopped) return false;
+    if (this.paused) return true;
     const channels = inputs[0];
     if (!channels?.length) return true;
     for (let i = 0; i < channels[0].length; i++) {

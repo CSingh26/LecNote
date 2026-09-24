@@ -5,7 +5,13 @@ import { captureInputs, type RecordingSource } from "./capture";
 import captureWorkletUrl from "./pcm-capture.js?url&no-inline";
 
 type Phase =
-  "idle" | "requesting" | "recording" | "stopping" | "blocked" | "complete";
+  | "idle"
+  | "requesting"
+  | "recording"
+  | "paused"
+  | "stopping"
+  | "blocked"
+  | "complete";
 type RecordingState = {
   phase: Phase;
   lectureId: string;
@@ -54,9 +60,13 @@ export class RecorderController {
     this.listeners.forEach((listener) => listener());
   }
   get protected() {
-    return ["requesting", "recording", "stopping", "blocked"].includes(
-      this.state.phase,
-    );
+    return [
+      "requesting",
+      "recording",
+      "paused",
+      "stopping",
+      "blocked",
+    ].includes(this.state.phase);
   }
   async start(
     title: string,
@@ -86,7 +96,8 @@ export class RecorderController {
       tracks.forEach((track) =>
         track.addEventListener("ended", () => {
           inputEnded = true;
-          if (this.state.phase === "recording") void this.stop();
+          if (["recording", "paused"].includes(this.state.phase))
+            void this.stop();
           else tracks.forEach((input) => input.stop());
         }),
       );
@@ -154,7 +165,10 @@ export class RecorderController {
           this.retained.push(wav);
           this.queue?.add({ sequence, offset, wav });
           this.update({ hasAudio: true, elapsed: this.captured / this.rate });
-        } else if (event.data.type === "meter")
+        } else if (
+          event.data.type === "meter" &&
+          this.state.phase === "recording"
+        )
           this.update({
             signal: event.data.signal ?? [],
             elapsed: (event.data.total ?? 0) / this.rate,
@@ -199,8 +213,19 @@ export class RecorderController {
     await this.context?.close().catch(() => {});
     this.context = null;
   }
-  async stop() {
+  pause() {
     if (this.state.phase !== "recording") return;
+    // Keep the audio graph live so stop/sharing-ended can still flush while paused.
+    this.node!.port.postMessage("pause");
+    this.update({ phase: "paused", signal: [] });
+  }
+  resume() {
+    if (this.state.phase !== "paused") return;
+    this.node!.port.postMessage("resume");
+    this.update({ phase: "recording" });
+  }
+  async stop() {
+    if (!["recording", "paused"].includes(this.state.phase)) return;
     this.update({ phase: "stopping" });
     try {
       // The worklet acknowledges only after posting the final partial buffer.

@@ -1,13 +1,13 @@
 # Verification record
 
-Verified on this Apple Silicon macOS laptop on September 23, 2026.
+Verified on this Apple Silicon macOS laptop on September 24, 2026.
 
 ## Automated checks
 
 - Python: 178 tests passed across API, persistence, job recovery, processing,
   OpenAI request boundaries, OCR/speaker adapters, exports, and CLI.
-- Frontend: 34 Vitest tests passed; TypeScript and production build passed.
-- Frontend Chromium suite: five tests passed with explicit API fixtures.
+- Frontend: 38 Vitest tests passed; TypeScript and production build passed.
+- Frontend Chromium suite: eight tests passed with explicit API fixtures.
 - Ruff and Git whitespace checks passed.
 - Notes retention checks cover detail/course/material/transcript edits, failed
   regeneration, local-only transcription, recovery from saved notes files, and
@@ -46,6 +46,13 @@ audio/video tracks, source selection, and New lecture metadata handoff across
 consecutive recordings. No actual screen-sharing
 permission was granted during automation. Native picker/device compatibility
 still depends on the user's browser and macOS permissions.
+
+Pause/resume tests verify sample-level exclusion of paused audio and elapsed
+time, partial-chunk flushing, repeated resumes, stopping while paused, and
+sharing ending while paused. Browser checks cover the paused navigation banner,
+reload protection, a single recording session, continuous upload offsets, hidden
+transcript, and desktop/mobile controls. Input devices remain connected during
+a pause; their audio is discarded by the capture worklet until resume.
 
 Reproduce the integration check in separate terminals after building the UI:
 

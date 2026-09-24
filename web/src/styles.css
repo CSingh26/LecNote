@@ -1678,6 +1678,12 @@ progress::-moz-progress-bar {
   background: #b34b52;
   animation: blink 1.4s ease infinite;
 }
+.record-state.is-paused {
+  color: #8a681b;
+}
+.record-state.is-paused i {
+  background: currentColor;
+}
 @keyframes blink {
   50% {
     opacity: 0.4;
@@ -1716,7 +1722,16 @@ progress::-moz-progress-bar {
 .record-actions {
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
   margin: 24px 0 18px;
+}
+.record-actions .icon-button {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
 }
 .record-actions .button {
   min-width: 180px;

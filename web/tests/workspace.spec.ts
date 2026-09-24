@@ -55,13 +55,25 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-for (const stopMode of ["button", "ended", "setup"] as const) {
+for (const stopMode of [
+  "button",
+  "ended",
+  "setup",
+  "paused",
+  "paused-ended",
+  "resume",
+] as const) {
   test(`records microphone and lecture audio together through New lecture (${stopMode})`, async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    const sessions: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "POST" && request.url().endsWith("/api/live"))
+        sessions.push(request.url());
+    });
     await page.addInitScript(() => {
       const tracks: MediaStreamTrack[] = [];
       const calls: string[] = [];
@@ -97,11 +109,17 @@ for (const stopMode of ["button", "ended", "setup"] as const) {
       Object.assign(window, { captureTest: { tracks, calls } });
     });
     const chunks: Buffer[] = [];
+    const positions: { sequence: number; offset: number }[] = [];
     await page.route("**/api/live/**/chunks", async (route) => {
       const data = route.request().postDataBuffer()!;
       const start = data.indexOf(Buffer.from("RIFF"));
       const length = data.readUInt32LE(start + 40);
       chunks.push(data.subarray(start, start + 44 + length));
+      const body = data.toString("latin1");
+      positions.push({
+        sequence: Number(body.match(/name="sequence"\r\n\r\n(\d+)/)![1]),
+        offset: Number(body.match(/name="offset"\r\n\r\n([\d.]+)/)![1]),
+      });
       await route.fulfill({ json: { accepted: true } });
     });
     await page.route("**/api/live/**/finish", (route) =>
@@ -177,6 +195,46 @@ for (const stopMode of ["button", "ended", "setup"] as const) {
     await expect(page.locator(".record-time")).toHaveText("0:02", {
       timeout: 10000,
     });
+    const pauses = ["paused", "paused-ended", "resume"].includes(stopMode);
+    if (pauses) {
+      await page
+        .getByRole("button", { name: "Pause recording", exact: true })
+        .click();
+      await expect(page.getByRole("status")).toHaveText("Paused");
+      await expect.poll(() => chunks.length).toBe(1);
+      const elapsed = await page.locator(".record-time").innerText();
+      await expect(page.getByLabel("Recording title")).toBeDisabled();
+      // Audio still arrives from the synthetic inputs throughout this break.
+      await page.waitForTimeout(1200);
+      await expect(page.locator(".record-time")).toHaveText(elapsed);
+      expect(chunks).toHaveLength(1);
+      await page.getByRole("link", { name: "Library", exact: true }).click();
+      await expect(
+        page.getByText("Recording paused", { exact: true }),
+      ).toBeVisible();
+      await page.getByRole("link", { name: "Record", exact: true }).click();
+      await expect(
+        page.getByRole("button", { name: "Resume recording" }),
+      ).toBeVisible();
+      await expect(
+        page.getByText("Live transcript", { exact: true }),
+      ).toHaveCount(0);
+      const protectedPage = await page.evaluate(() => {
+        const event = new Event("beforeunload", { cancelable: true });
+        window.dispatchEvent(event);
+        return event.defaultPrevented;
+      });
+      expect(protectedPage).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath("paused-desktop.png"),
+        fullPage: true,
+      });
+      if (stopMode === "resume") {
+        await page.getByRole("button", { name: "Resume recording" }).click();
+        await expect(page.getByRole("status")).toHaveText("Recording");
+        await expect(page.locator(".record-time")).not.toHaveText(elapsed);
+      }
+    }
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
       path: testInfo.outputPath("both-recording-desktop.png"),
@@ -192,7 +250,7 @@ for (const stopMode of ["button", "ended", "setup"] as const) {
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
-    if (stopMode === "ended") {
+    if (stopMode === "ended" || stopMode === "paused-ended") {
       await page.evaluate(() => {
         const track = (
           window as unknown as { captureTest: { tracks: MediaStreamTrack[] } }
@@ -208,7 +266,16 @@ for (const stopMode of ["button", "ended", "setup"] as const) {
     await expect(
       page.getByRole("button", { name: "Record another lecture" }),
     ).toBeVisible();
-    expect(chunks).toHaveLength(1);
+    expect(chunks).toHaveLength(stopMode === "resume" ? 2 : 1);
+    expect(sessions).toHaveLength(1);
+    let total = 0;
+    chunks.forEach((chunk, index) => {
+      expect(positions[index]).toEqual({
+        sequence: index,
+        offset: total / 48000,
+      });
+      total += chunk.readUInt32LE(40) / 2;
+    });
     const wav = chunks[0],
       rate = wav.readUInt32LE(24);
     expect(wav.readUInt16LE(22)).toBe(1);
@@ -398,12 +465,16 @@ test("recording survives navigation, sends sample-derived ordered WAV chunks and
   await page.getByLabel("Recording title").fill("Browser microphone test");
   await page.getByRole("button", { name: "Start recording" }).click();
   await expect(page.getByRole("button", { name: "Stop & save" })).toBeVisible();
-  await expect(page.getByText("Live transcript", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Live transcript", { exact: true })).toHaveCount(
+    0,
+  );
   await page.getByRole("link", { name: "Library", exact: true }).click();
   await expect(page.getByText("Recording in progress")).toBeVisible();
   await expect.poll(() => received.length, { timeout: 20000 }).toBe(1);
   await page.getByRole("link", { name: "Record", exact: true }).click();
-  await expect(page.getByText("Live transcript", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Live transcript", { exact: true })).toHaveCount(
+    0,
+  );
   await page.getByRole("button", { name: "Stop & save" }).click();
   await expect(
     page.getByRole("button", { name: "Record another lecture" }),

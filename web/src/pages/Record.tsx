@@ -4,6 +4,8 @@ import {
   Download,
   Mic,
   Monitor,
+  Pause,
+  Play,
   RotateCcw,
   Square,
 } from "lucide-react";
@@ -16,6 +18,7 @@ import {
   CourseSelect,
   ErrorNotice,
   Field,
+  IconButton,
   LectureLink,
   PageHeader,
 } from "../components/ui";
@@ -105,18 +108,21 @@ export function Record({
                   : "MICROPHONE"}
             </span>
             <span
-              className={`record-state ${state.phase === "recording" ? "is-live" : ""}`}
+              className={`record-state ${state.phase === "recording" ? "is-live" : state.phase === "paused" ? "is-paused" : ""}`}
+              role="status"
             >
               <i />
               {state.phase === "recording"
                 ? "Recording"
-                : state.phase === "stopping"
-                  ? "Finishing"
-                  : state.phase === "blocked"
-                    ? "Upload paused"
-                    : state.phase === "complete"
-                      ? "Saved"
-                      : "Standby"}
+                : state.phase === "paused"
+                  ? "Paused"
+                  : state.phase === "stopping"
+                    ? "Finishing"
+                    : state.phase === "blocked"
+                      ? "Upload paused"
+                      : state.phase === "complete"
+                        ? "Saved"
+                        : "Standby"}
             </span>
           </div>
           <div className="record-time">{time(state.elapsed)}</div>
@@ -205,14 +211,29 @@ export function Record({
                     ? "Record another lecture"
                     : "Start recording"}
                 </Button>
-              ) : state.phase === "recording" ? (
-                <Button
-                  variant="danger"
-                  icon={Square}
-                  onClick={() => void recorder.stop()}
-                >
-                  Stop & save
-                </Button>
+              ) : ["recording", "paused"].includes(state.phase) ? (
+                <>
+                  <IconButton
+                    label={
+                      state.phase === "paused"
+                        ? "Resume recording"
+                        : "Pause recording"
+                    }
+                    icon={state.phase === "paused" ? Play : Pause}
+                    onClick={() =>
+                      state.phase === "paused"
+                        ? recorder.resume()
+                        : recorder.pause()
+                    }
+                  />
+                  <Button
+                    variant="danger"
+                    icon={Square}
+                    onClick={() => void recorder.stop()}
+                  >
+                    Stop & save
+                  </Button>
+                </>
               ) : (
                 <Button disabled>
                   {state.phase === "requesting"
@@ -248,7 +269,9 @@ export function Record({
           {state.hasAudio && (
             <Button icon={Download} onClick={() => recorder.download()}>
               Download{" "}
-              {state.phase === "recording" ? "captured chunks" : "recording"}{" "}
+              {["recording", "paused"].includes(state.phase)
+                ? "captured chunks"
+                : "recording"}{" "}
               (WAV)
             </Button>
           )}

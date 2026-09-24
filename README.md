@@ -89,6 +89,13 @@ Enter the title, select **Microphone**, **Lecture audio**, or **Both**, then
 press **Start recording**. Stop & save preserves the WAV recording and queues
 local transcription; an OpenAI key is needed only for the generated notes.
 
+Use the **Pause** icon beside Stop & save to take a break, then **Resume** to
+continue the same lecture. Paused audio and time are excluded from the saved WAV;
+audio recorded before the pause is uploaded normally. Stop & save also works
+while paused. Keep the tab open: microphone/screen-sharing access stays active
+so resuming does not need another permission prompt. Ending sharing while paused
+finishes and saves the recording.
+
 For online lectures, open LecNote in desktop Chrome or Edge, select the lecture
 tab in the browser's sharing picker, and enable tab audio. Audio from other apps
 or the entire system is available only when the browser and operating system

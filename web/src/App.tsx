@@ -200,16 +200,20 @@ export default function App() {
             {health.error ? "Offline" : "LOCAL"}
           </span>
         </div>
-        {["recording", "stopping", "blocked"].includes(recording.phase) &&
+        {["recording", "paused", "stopping", "blocked"].includes(
+          recording.phase,
+        ) &&
           page !== "record" && (
             <a className="recording-banner" href="#/record">
               <Mic size={17} />
               <strong>
                 {recording.phase === "recording"
                   ? "Recording in progress"
-                  : recording.phase === "blocked"
-                    ? "Recording needs attention"
-                    : "Saving recording"}
+                  : recording.phase === "paused"
+                    ? "Recording paused"
+                    : recording.phase === "blocked"
+                      ? "Recording needs attention"
+                      : "Saving recording"}
               </strong>
               <span>{time(recording.elapsed)}</span>
               <span>
