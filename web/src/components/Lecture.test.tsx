@@ -79,6 +79,7 @@ it("sends local transcription and the saved diarization default explicitly", asy
   });
 });
 it("uses a settings default that arrives after the lecture and respects manual changes", async () => {
+  lecture = { ...base, context: "Lecture focus", preparation_ready: true };
   const user = userEvent.setup();
   const view = render(<Lecture {...props} settings={undefined} />);
   await screen.findByRole("button", { name: "Generate notes" });

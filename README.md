@@ -12,7 +12,9 @@ retained in notes with uncertainty; the original transcript is never removed.
 Manual relevance changes mark saved notes outdated until regeneration.
 The backend supports ordered same-class recording merges and verified six-hour
 audio compression. Sources are preserved by merging; compression replaces an
-original only after full audio validation. Web UI integration is the next milestone.
+original only after full audio validation. The Web UI now includes class resource
+storage, saved lecture preparation, and the source history for generated notes.
+Relevance, merge, and compression controls are the next UI milestone.
 
 A local lecture library with Whisper transcription, OpenAI study notes, and a
 browser workspace. The combined MVP/v1/v2 implementation includes courses,

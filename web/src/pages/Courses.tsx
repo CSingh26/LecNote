@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
-import { BookOpen, Pencil, Plus, Trash2 } from "lucide-react";
+import { BookOpen, Files, Pencil, Plus, Trash2 } from "lucide-react";
 import type { Course } from "../types";
+import { ClassResources } from "../components/ClassResources";
 import { api, json, message } from "../lib/api";
 import {
   Button,
@@ -37,6 +38,7 @@ export function Courses({
 }) {
   const [edit, setEdit] = useState<Course | "new" | null>(null);
   const [remove, setRemove] = useState<Course | null>(null);
+  const [resources, setResources] = useState<Course | null>(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
   async function deleteCourse() {
@@ -90,6 +92,11 @@ export function Courses({
               </div>
               <div className="actions">
                 <IconButton
+                  label={`Resources for ${course.name}`}
+                  icon={Files}
+                  onClick={() => setResources(course)}
+                />
+                <IconButton
                   label={`Edit ${course.name}`}
                   icon={Pencil}
                   onClick={() => setEdit(course)}
@@ -125,6 +132,13 @@ export function Courses({
             setEdit(null);
             refresh();
           }}
+        />
+      )}
+      {resources && (
+        <ClassResources
+          key={resources.id}
+          course={resources}
+          onClose={() => setResources(null)}
         />
       )}
       {remove && (

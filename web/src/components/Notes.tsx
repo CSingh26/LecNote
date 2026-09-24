@@ -233,6 +233,20 @@ export function NotesView({
         </section>
         {notes && (
           <div className="notes-provenance">
+            {(notes.provenance?.context ||
+              notes.provenance?.resource_provenance?.length) && (
+              <details>
+                <summary>Used for these notes</summary>
+                {notes.provenance.context && <p>{notes.provenance.context}</p>}
+                <ul>
+                  {notes.provenance.resource_provenance?.map((source) => (
+                    <li key={source.id}>
+                      {source.name} · Revision {source.revision}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
             <small>
               {notes.model} ·{" "}
               {(

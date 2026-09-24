@@ -7,6 +7,24 @@ export interface Course {
   vocabulary: string;
   created_at: string;
   lecture_count: number;
+  optimize_recordings?: boolean | null;
+}
+export interface Resource {
+  id: string;
+  course_id: string;
+  name: string;
+  kind: string;
+  text: string;
+  url?: string | null;
+  created_at: string;
+  updated_at: string;
+  error?: string | null;
+  revision: number;
+}
+export interface ResourceProvenance {
+  name: string;
+  id: string;
+  revision: number;
 }
 export interface Segment {
   id: number;
@@ -73,6 +91,13 @@ export interface ChunkNote {
   visual: Visual | null;
 }
 export interface Notes {
+  resource_provenance?: ResourceProvenance[];
+  provenance?: {
+    context?: string;
+    course_context?: string;
+    resource_provenance?: ResourceProvenance[];
+    resources?: ResourceProvenance[];
+  };
   title: string;
   overview: string;
   takeaways: string[];
@@ -94,6 +119,9 @@ export interface Lecture {
   updated_at: string;
   context: string;
   language: string;
+  selected_resource_ids?: string[];
+  preparation_ready?: boolean;
+  resource_provenance?: ResourceProvenance[];
   transcript: Transcript | null;
   notes: Notes | null;
   notes_stale?: boolean;
@@ -106,6 +134,7 @@ export interface Lecture {
   course_color?: string;
 }
 export interface Settings {
+  optimize_recordings?: boolean;
   model: string;
   whisper_model: string;
   chunk_minutes: number;

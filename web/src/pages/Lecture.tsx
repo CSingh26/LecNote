@@ -36,6 +36,7 @@ import { LectureForm } from "../components/LectureForm";
 import { NotesView, Review } from "../components/Notes";
 import { TranscriptView } from "../components/Transcript";
 import { Materials } from "../components/Materials";
+import { Preparation } from "../components/Preparation";
 
 export function Lecture({
   id,
@@ -63,8 +64,21 @@ export function Lecture({
   const [remove, setRemove] = useState(false);
   const [regenerate, setRegenerate] = useState(false);
   const [diarize, setDiarize] = useState<boolean | null>(null);
+  const [preparationDirty, setPreparationDirty] = useState(false);
+  const [preparationReady, setPreparationReady] = useState(false);
+  const [preparationSaving, setPreparationSaving] = useState(false);
+  const [contentDirty, setContentDirty] = useState(false);
   const media = useRef<HTMLMediaElement | null>(null);
   const pendingSeek = useRef<number | null>(seekTo);
+  useEffect(() => {
+    onDirty(preparationDirty || contentDirty);
+  }, [preparationDirty, contentDirty, onDirty]);
+  useEffect(() => {
+    setPreparationDirty(false);
+    setPreparationReady(false);
+    setPreparationSaving(false);
+    setContentDirty(false);
+  }, [id]);
   const refresh = () => {
     resource.refresh();
     onChanged();
@@ -85,6 +99,16 @@ export function Lecture({
     }
   }
   async function process(force = false, transcribeOnly = false) {
+    if (
+      !lecture ||
+      activeStatus(lecture.status) ||
+      (lecture.job && activeStatus(lecture.job.status)) ||
+      busy ||
+      preparationSaving ||
+      (!transcribeOnly &&
+        (!preparationReady || preparationDirty || contentDirty || dirty))
+    )
+      return;
     setBusy("process");
     setError("");
     try {
@@ -179,7 +203,9 @@ export function Lecture({
         <ErrorNotice error={resource.error} retry={resource.refresh} />
       </>
     );
-  const active = activeStatus(lecture.status);
+  const active =
+    activeStatus(lecture.status) ||
+    Boolean(lecture.job && activeStatus(lecture.job.status));
   const tabs = ["Notes", "Transcript", "Materials", "Review"].filter(
     (name) => name !== "Transcript" || lecture.status !== "recording",
   );
@@ -212,7 +238,9 @@ export function Lecture({
               courses={courses}
               value={lecture.course_id || ""}
               onChange={(value) => void assignCourse(value)}
-              disabled={active || Boolean(busy)}
+              disabled={
+                active || Boolean(busy) || preparationDirty || preparationSaving
+              }
             />
           </label>
         </div>
@@ -220,6 +248,9 @@ export function Lecture({
           <IconButton
             label="Edit lecture details"
             icon={Pencil}
+            disabled={
+              active || Boolean(busy) || preparationDirty || preparationSaving
+            }
             onClick={() => setEdit(true)}
           />
           <div className="export-control">
@@ -244,7 +275,7 @@ export function Lecture({
           <IconButton
             label="Delete lecture"
             icon={Trash2}
-            disabled={active || Boolean(busy)}
+            disabled={active || Boolean(busy) || preparationSaving}
             onClick={() => {
               setError("");
               setRemove(true);
@@ -314,6 +345,15 @@ export function Lecture({
           <span>Imported transcript · No source recording</span>
         </div>
       )}
+      <Preparation
+        key={lecture.id}
+        lecture={lecture}
+        disabled={active || Boolean(busy) || edit}
+        onSaved={refresh}
+        onDirty={setPreparationDirty}
+        onReady={setPreparationReady}
+        onBusy={setPreparationSaving}
+      />
       <div className="processing-bar">
         {active && lecture.job ? (
           <JobProgress job={lecture.job} />
@@ -345,10 +385,10 @@ export function Lecture({
                 />
                 Detect speakers
               </label>
-              {hasMedia && !lecture.transcript && (
+              {hasMedia && (
                 <Button
                   icon={FileAudio}
-                  disabled={Boolean(busy) || dirty}
+                  disabled={Boolean(busy) || preparationSaving}
                   onClick={() => void process(false, true)}
                 >
                   Transcribe locally
@@ -357,7 +397,13 @@ export function Lecture({
               <Button
                 variant="primary"
                 icon={lecture.notes ? RotateCcw : Play}
-                disabled={Boolean(busy) || dirty}
+                disabled={
+                  Boolean(busy) ||
+                  dirty ||
+                  preparationDirty ||
+                  contentDirty ||
+                  !preparationReady
+                }
                 onClick={() =>
                   lecture.notes ? setRegenerate(true) : void process(false)
                 }
@@ -403,9 +449,12 @@ export function Lecture({
               }
             }}
             onClick={() => {
-              if (dirty && !window.confirm("Discard your unsaved edits?"))
+              if (
+                contentDirty &&
+                !window.confirm("Discard your unsaved edits?")
+              )
                 return;
-              onDirty(false);
+              setContentDirty(false);
               setTab(name);
             }}
           >
@@ -428,14 +477,14 @@ export function Lecture({
             prices={settings}
             onSeek={seek}
             onSaved={refresh}
-            onDirty={onDirty}
+            onDirty={setContentDirty}
           />
         ) : visibleTab === "Transcript" ? (
           <TranscriptView
             lecture={lecture}
             onSeek={seek}
             onSaved={refresh}
-            onDirty={onDirty}
+            onDirty={setContentDirty}
           />
         ) : visibleTab === "Materials" ? (
           <Materials lecture={lecture} onSaved={refresh} />
@@ -472,6 +521,9 @@ export function Lecture({
           <Regenerate
             onClose={() => setRegenerate(false)}
             busy={Boolean(busy)}
+            disabled={
+              active || !preparationReady || preparationDirty || contentDirty
+            }
             onConfirm={() => void process(true)}
             error={error}
           />
@@ -485,11 +537,13 @@ function Regenerate({
   onClose,
   onConfirm,
   busy,
+  disabled,
   error,
 }: {
   onClose: () => void;
   onConfirm: () => void;
   busy: boolean;
+  disabled: boolean;
   error: string;
 }) {
   return (
@@ -506,7 +560,11 @@ function Regenerate({
         <Button onClick={onClose} disabled={busy}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={onConfirm} disabled={busy}>
+        <Button
+          variant="primary"
+          onClick={onConfirm}
+          disabled={busy || disabled}
+        >
           Regenerate
         </Button>
       </footer>

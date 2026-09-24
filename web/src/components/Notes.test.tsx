@@ -38,6 +38,30 @@ const props = {
   onSaved: () => {},
   onDirty: () => {},
 };
+it("shows the saved generation sources rather than current preparation", () => {
+  render(
+    <NotesView
+      {...props}
+      lecture={{
+        ...lecture,
+        context: "New preparation",
+        notes: {
+          ...lecture.notes!,
+          provenance: {
+            context: "Original focus",
+            resource_provenance: [
+              { id: "source", name: "Week 3 slides", revision: 2 },
+            ],
+          },
+        },
+      }}
+    />,
+  );
+  expect(screen.getByText("Used for these notes")).toBeInTheDocument();
+  expect(screen.getByText("Original focus")).toBeInTheDocument();
+  expect(screen.getByText(/Week 3 slides.*Revision 2/)).toBeInTheDocument();
+  expect(screen.queryByText("New preparation")).not.toBeInTheDocument();
+});
 it("shows a saved-generation estimate only when both prices are configured", () => {
   const view = render(
     <NotesView
