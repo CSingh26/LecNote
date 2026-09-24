@@ -9,14 +9,18 @@ from pathlib import Path
 from urllib.parse import urlparse
 from uuid import uuid4
 
+from anyio import CancelScope
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .config import Settings
 from .db import Repository, now
 from .jobs import JobManager
+from .media import transcript_provenance
+from .media_api import install_media
 from .requests import (
     CourseInput,
     CoursePatch,
@@ -123,6 +127,19 @@ def create_app(settings: Settings | None = None, start_worker=True):
             if k not in {"media_path", "force", "live_epoch", "transcript_edited"}
         }
         course = repo.get("courses", lecture.get("course_id")) or {}
+        enabled = settings.optimize_recordings
+        for owner in (course, lecture):
+            if owner.get("optimize_recordings") is not None:
+                enabled = owner["optimize_recordings"]
+        if not enabled:
+            value["compression"] = {**(lecture.get("compression") or {}), "status": "disabled"}
+        if lecture.get("media_path"):
+            try:
+                path = Path(lecture["media_path"])
+                if path.is_file():
+                    value["source_bytes"] = path.stat().st_size
+            except OSError:
+                pass
         value.update(
             course_name=course.get("name", "Unfiled"),
             course_code=course.get("code", ""),
@@ -152,29 +169,30 @@ def create_app(settings: Settings | None = None, start_worker=True):
         return value
 
     def new_lecture(title, course_id=None, **values):
-        check_course(course_id)
-        lecture = repo.create(
-            "lectures",
-            {
-                "title": title,
-                "course_id": course_id or None,
-                "source_name": "",
-                "media_type": "",
-                "status": "draft",
-                "duration": 0,
-                "context": "",
-                "language": "",
-                "transcript": None,
-                "notes": None,
-                "user_notes": "",
-                "attachments": [],
-                "error": None,
-                "media_path": None,
-                **values,
-            },
-        )
-        settings.lecture_dir(lecture["id"])
-        return lecture
+        with manager.lock:
+            check_course(course_id)
+            lecture = repo.create(
+                "lectures",
+                {
+                    "title": title,
+                    "course_id": course_id or None,
+                    "source_name": "",
+                    "media_type": "",
+                    "status": "draft",
+                    "duration": 0,
+                    "context": "",
+                    "language": "",
+                    "transcript": None,
+                    "notes": None,
+                    "user_notes": "",
+                    "attachments": [],
+                    "error": None,
+                    "media_path": None,
+                    **values,
+                },
+            )
+            settings.lecture_dir(lecture["id"])
+            return lecture
 
     @app.get("/api/health")
     def health():
@@ -196,6 +214,8 @@ def create_app(settings: Settings | None = None, start_worker=True):
     def patch_course(course_id: str, body: CoursePatch):
         check_course(course_id)
         values = body.model_dump(exclude_unset=True, exclude_none=True)
+        if 'optimize_recordings' in body.model_fields_set:
+            values['optimize_recordings'] = body.optimize_recordings
         with manager.lock:
             related = [item for item in repo.list("lectures") if item.get("course_id") == course_id]
             current = repo.get("courses", course_id)
@@ -244,24 +264,28 @@ def create_app(settings: Settings | None = None, start_worker=True):
         identifier = str(uuid4())
         folder = settings.lecture_dir(identifier)
         path = folder / ("source" + suffix)
+
+        def finalize_upload():
+            from .media import MediaService
+
+            with manager.lock:
+                lecture = new_lecture(
+                    title.strip(), course_id, id=identifier, media_path=str(path),
+                    source_name=name, media_type=MEDIA[suffix], context=context, language=language,
+                )
+                MediaService(repo, settings).mark_finalized(lecture["id"])
+                if process:
+                    manager.enqueue(lecture["id"], diarize=settings.diarization, transcribe_only=True)
+                return public_lecture(get_lecture(lecture["id"]))
+
         try:
             await save_upload(file, path, 4 * 1024**3)
-            lecture = new_lecture(
-                title.strip(),
-                course_id,
-                id=identifier,
-                media_path=str(path),
-                source_name=name,
-                media_type=MEDIA[suffix],
-                context=context,
-                language=language,
-            )
+            with CancelScope(shield=True):
+                return await run_in_threadpool(finalize_upload)
         except BaseException:
-            shutil.rmtree(folder, ignore_errors=True)
+            if not repo.get("lectures", identifier):
+                shutil.rmtree(folder, ignore_errors=True)
             raise
-        if process:
-            manager.enqueue(lecture["id"], diarize=settings.diarization, transcribe_only=True)
-        return public_lecture(get_lecture(lecture["id"]))
 
     @app.post("/api/lectures/import", status_code=201)
     def import_transcript(body: ImportInput):
@@ -289,6 +313,8 @@ def create_app(settings: Settings | None = None, start_worker=True):
         if any(v is None for k, v in values.items() if k != "course_id"):
             raise HTTPException(422, "Text fields cannot be null")
         with manager.lock:
+            if "course_id" in values:
+                check_course(values["course_id"])
             if set(values) - {"user_notes"}:
                 current = editable(lecture_id)
             else:
@@ -325,6 +351,7 @@ def create_app(settings: Settings | None = None, start_worker=True):
                     lecture_id,
                     {
                         "transcript": transcript,
+                        **transcript_provenance(current, transcript),
                         "duration": body.duration,
                         "language": body.language,
                         **(outdated_notes(current) if transcript != current.get("transcript") else {}),
@@ -338,22 +365,23 @@ def create_app(settings: Settings | None = None, start_worker=True):
 
     @app.post("/api/lectures/{lecture_id}/process")
     def process_lecture(lecture_id: str, body: ProcessInput):
-        value = get_lecture(lecture_id)
-        if value["status"] == "recording":
-            raise HTTPException(409, "Finish recording before generating notes")
-        if not body.transcribe_only:
-            try:
-                generation_inputs(repo, value)
-            except ValueError as exc:
-                raise HTTPException(422, str(exc)) from exc
-        diarize = settings.diarization if body.diarize is None else body.diarize
-        if not value.get("media_path") and repo.list_chunks(lecture_id):
-            return manager.enqueue(
-                lecture_id, body.force, diarize, live_finish=True, transcribe_only=body.transcribe_only
-            )
-        if not value.get("media_path") and not value.get("transcript"):
-            raise HTTPException(422, "Add a recording or transcript first")
-        return manager.enqueue(lecture_id, body.force, diarize, transcribe_only=body.transcribe_only)
+        with manager.lock:
+            value = get_lecture(lecture_id)
+            if value["status"] == "recording":
+                raise HTTPException(409, "Finish recording before generating notes")
+            if not body.transcribe_only:
+                try:
+                    generation_inputs(repo, value)
+                except ValueError as exc:
+                    raise HTTPException(422, str(exc)) from exc
+            diarize = settings.diarization if body.diarize is None else body.diarize
+            if not value.get("media_path") and repo.list_chunks(lecture_id):
+                return manager.enqueue(
+                    lecture_id, body.force, diarize, live_finish=True, transcribe_only=body.transcribe_only
+                )
+            if not value.get("media_path") and not value.get("transcript"):
+                raise HTTPException(422, "Add a recording or transcript first")
+            return manager.enqueue(lecture_id, body.force, diarize, transcribe_only=body.transcribe_only)
 
     @app.post("/api/lectures/{lecture_id}/cancel")
     def cancel_lecture(lecture_id: str):
@@ -381,8 +409,6 @@ def create_app(settings: Settings | None = None, start_worker=True):
 
     @app.post("/api/lectures/{lecture_id}/attachments", status_code=201)
     async def attach(lecture_id: str, file: UploadFile = File()):
-        from starlette.concurrency import run_in_threadpool
-
         from .enrichment import extract_context
 
         editable(lecture_id)
@@ -413,17 +439,21 @@ def create_app(settings: Settings | None = None, start_worker=True):
             "created_at": now(),
             "error": error,
         }
-        with manager.lock:
-            try:
+        def finalize_attachment():
+            with manager.lock:
                 value = editable(lecture_id)
-            except HTTPException:
-                path.unlink(missing_ok=True)
-                raise
-            repo.update(
-                "lectures",
-                lecture_id,
-                {"attachments": value["attachments"] + [item], **outdated_notes(value)},
-            )
+                repo.update(
+                    "lectures",
+                    lecture_id,
+                    {"attachments": value["attachments"] + [item], **outdated_notes(value)},
+                )
+
+        try:
+            with CancelScope(shield=True):
+                await run_in_threadpool(finalize_attachment)
+        except BaseException:
+            path.unlink(missing_ok=True)
+            raise
         return {k: v for k, v in item.items() if k != "path"}
 
     def get_attachment(lecture_id, attachment_id):
@@ -552,12 +582,17 @@ def create_app(settings: Settings | None = None, start_worker=True):
 
     @app.post("/api/live", status_code=201)
     def live(body: LiveInput):
-        if any(item["status"] == "recording" for item in repo.list("lectures")):
-            raise HTTPException(409, "Finish the current recording first")
-        item = new_lecture(
-            body.title, body.course_id, status="recording", language=body.language, context=body.context
-        )
-        return {"id": item["id"], "lecture_id": item["id"]}
+        if not manager.lock.acquire(blocking=False):
+            raise HTTPException(409, "A media operation is in progress; try recording again shortly")
+        try:
+            if any(item["status"] == "recording" for item in repo.list("lectures")):
+                raise HTTPException(409, "Finish the current recording first")
+            item = new_lecture(
+                body.title, body.course_id, status="recording", language=body.language, context=body.context
+            )
+            return {"id": item["id"], "lecture_id": item["id"]}
+        finally:
+            manager.lock.release()
 
     @app.post("/api/live/{lecture_id}/chunks")
     async def live_chunk(
@@ -584,38 +619,43 @@ def create_app(settings: Settings | None = None, start_worker=True):
             except (wave.Error, EOFError, ValueError) as exc:
                 raise HTTPException(422, str(exc)) from exc
             digest = hashlib.sha256(temporary.read_bytes()).hexdigest()
-            with manager.lock:
-                lecture = get_lecture(lecture_id)
-                chunks = repo.list_chunks(lecture_id)
-                existing = next((c for c in chunks if c["sequence"] == sequence), None)
-                if existing:
-                    if existing["digest"] != digest or abs(existing["offset"] - offset) > 0.001:
-                        raise HTTPException(409, "This chunk number contains different audio")
-                    return {"accepted": True}
-                if lecture["status"] != "recording":
-                    raise HTTPException(409, "Recording is already finished")
-                expected_offset = sum(c["duration"] for c in chunks)
-                if sequence != len(chunks) or abs(offset - expected_offset) > 0.1:
-                    raise HTTPException(409, "Upload recording chunks in order with continuous offsets")
-                if chunks and chunks[0]["rate"] != rate:
-                    raise HTTPException(422, "Recording sample rate changed")
-                destination = folder / f"{sequence:06d}.wav"
-                temporary.replace(destination)
-                repo.add_chunk(
-                    lecture_id,
-                    sequence,
-                    {
-                        "sequence": sequence,
-                        "offset": offset,
-                        "duration": duration,
-                        "rate": rate,
-                        "digest": digest,
-                        "path": str(destination),
-                        "status": "queued",
-                    },
-                )
-                manager.queue_chunk(lecture_id, sequence)
-            return {"accepted": True}
+
+            def finalize_chunk():
+                with manager.lock:
+                    lecture = get_lecture(lecture_id)
+                    chunks = repo.list_chunks(lecture_id)
+                    existing = next((c for c in chunks if c["sequence"] == sequence), None)
+                    if existing:
+                        if existing["digest"] != digest or abs(existing["offset"] - offset) > 0.001:
+                            raise HTTPException(409, "This chunk number contains different audio")
+                        return {"accepted": True}
+                    if lecture["status"] != "recording":
+                        raise HTTPException(409, "Recording is already finished")
+                    expected_offset = sum(c["duration"] for c in chunks)
+                    if sequence != len(chunks) or abs(offset - expected_offset) > 0.1:
+                        raise HTTPException(409, "Upload recording chunks in order with continuous offsets")
+                    if chunks and chunks[0]["rate"] != rate:
+                        raise HTTPException(422, "Recording sample rate changed")
+                    destination = folder / f"{sequence:06d}.wav"
+                    temporary.replace(destination)
+                    repo.add_chunk(
+                        lecture_id,
+                        sequence,
+                        {
+                            "sequence": sequence,
+                            "offset": offset,
+                            "duration": duration,
+                            "rate": rate,
+                            "digest": digest,
+                            "path": str(destination),
+                            "status": "queued",
+                        },
+                    )
+                    manager.queue_chunk(lecture_id, sequence)
+                return {"accepted": True}
+
+            with CancelScope(shield=True):
+                return await run_in_threadpool(finalize_chunk)
         finally:
             temporary.unlink(missing_ok=True)
 
@@ -639,6 +679,7 @@ def create_app(settings: Settings | None = None, start_worker=True):
 
     install_resources(app, repo, settings, manager, check_course, editable, public_lecture, save_upload)
     install_review(app, repo, manager, editable, public_lecture)
+    install_media(app, repo, settings, manager, public_lecture)
 
     web = Path(__file__).resolve().parent.parent / "web" / "dist"
     if (web / "assets").exists():

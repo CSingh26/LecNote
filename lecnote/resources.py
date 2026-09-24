@@ -1,6 +1,7 @@
 from pathlib import Path
 from uuid import uuid4
 
+from anyio import CancelScope
 from fastapi import File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import Field
@@ -134,24 +135,29 @@ def install_resources(app, repo, settings, manager, check_course, editable, publ
                     error = "Only the first 100,000 characters were extracted"
             except (RuntimeError, ValueError, OSError):
                 error = "Text extraction failed. The original file is preserved."
-            with manager.lock:
-                check_course(course_id)
-                return public(
-                    repo.create(
-                        "resources",
-                        {
-                            "id": identifier,
-                            "course_id": course_id,
-                            "name": name[:200],
-                            "kind": suffix[1:],
-                            "text": text,
-                            "error": error,
-                            "revision": 1,
-                            "path": str(path),
-                            "url": f"/api/courses/{course_id}/resources/{identifier}/file",
-                        },
+
+            def finalize_resource():
+                with manager.lock:
+                    check_course(course_id)
+                    return public(
+                        repo.create(
+                            "resources",
+                            {
+                                "id": identifier,
+                                "course_id": course_id,
+                                "name": name[:200],
+                                "kind": suffix[1:],
+                                "text": text,
+                                "error": error,
+                                "revision": 1,
+                                "path": str(path),
+                                "url": f"/api/courses/{course_id}/resources/{identifier}/file",
+                            },
+                        )
                     )
-                )
+
+            with CancelScope(shield=True):
+                return await run_in_threadpool(finalize_resource)
         except BaseException:
             path.unlink(missing_ok=True)
             folder.rmdir()

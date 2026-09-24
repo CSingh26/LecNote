@@ -1,6 +1,7 @@
 import logging
 import queue
 import threading
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -22,6 +23,7 @@ class JobManager:
         self.stopped = threading.Event()
         self.cancelled = set()
         self.thread = None
+        self.last_maintenance = 0.0
         for job in repo.list("jobs"):
             if job["status"] in ACTIVE:
                 repo.update(
@@ -124,6 +126,9 @@ class JobManager:
             try:
                 kind, identifier = self.work.get(timeout=0.2)
             except queue.Empty:
+                if time.monotonic() - self.last_maintenance >= 60:
+                    self.last_maintenance = time.monotonic()
+                    self._maintenance()
                 continue
             try:
                 if kind == "pipeline":
@@ -136,6 +141,26 @@ class JobManager:
             finally:
                 self.work.task_done()
 
+    def _maintenance(self):
+        from .media import MediaService
+        from .schemas import PipelineCancelled
+
+        try:
+            with self.lock:
+                if self.stopped.is_set() or not self.work.empty():
+                    return
+                if any(item.get('status') == 'recording' for item in self.repo.list('lectures')):
+                    return
+                if any(job.get('status') in ACTIVE for job in self.repo.list('jobs')):
+                    return
+                MediaService(self.repo, self.settings).compress_due(
+                    limit=1, cancelled=self.stopped.is_set,
+                )
+        except PipelineCancelled:
+            pass
+        except Exception:
+            log.error('Audio maintenance could not complete; original audio is preserved.')
+
     def _redact(self, error):
         message = str(error)[:1500]
         for secret in (self.settings.api_key, self.settings.hf_token):
@@ -144,6 +169,7 @@ class JobManager:
         return message
 
     def _run(self, job_id):
+        from .media import transcript_provenance
         from .pipeline import PipelineCancelled, run_pipeline
 
         with self.lock:
@@ -164,6 +190,14 @@ class JobManager:
             status = "transcribing" if stage in {"transcribing", "diarizing"} else "generating"
             self.repo.update("lectures", lecture_id, {"status": status})
 
+        def retire_chunks():
+            current = self.repo.get("lectures", lecture_id)
+            if not current.get("finalized_at") or not current.get("transcript"):
+                return
+            for chunk in self.repo.list_chunks(lecture_id):
+                if chunk.get("status") in ACTIVE:
+                    self.repo.update_chunk(lecture_id, chunk["sequence"], {"status": "archived"})
+
         try:
             lecture = self.repo.get("lectures", lecture_id)
             if job.get("live_finish"):
@@ -182,6 +216,10 @@ class JobManager:
                 ):
                     values["transcript"] = None
                 lecture = self.repo.update("lectures", lecture_id, values)
+                from .media import MediaService
+
+                with self.lock:
+                    lecture = MediaService(self.repo, settings).mark_finalized(lecture_id)
             course = self.repo.get("courses", lecture.get("course_id")) or {}
             if not job.get("transcribe_only"):
                 from .resources import generation_inputs
@@ -201,10 +239,13 @@ class JobManager:
                     current = self.repo.get("lectures", lecture_id)
                     changes = dict(values)
                     if "transcript" in values:
+                        changes.update(transcript_provenance(current, values["transcript"]))
                         changes["duration"] = values["transcript"]["duration"]
                         if current.get("transcript") != values["transcript"]:
                             changes.update(relevance=None, notes_stale=bool(current.get("notes")))
                     self.repo.update("lectures", lecture_id, changes)
+                    if "transcript" in values:
+                        retire_chunks()
 
             if self.pipeline:
                 result = self.pipeline(lecture, settings, progress, cancelled)
@@ -219,6 +260,7 @@ class JobManager:
                     lecture_id,
                     {
                         "transcript": result["transcript"],
+                        **transcript_provenance(self.repo.get("lectures", lecture_id), result["transcript"]),
                         "notes": saved_notes,
                         "resource_provenance": lecture.get("resource_provenance", []),
                         "relevance": result.get("relevance", lecture.get("relevance")),
@@ -234,6 +276,7 @@ class JobManager:
                         "error": None,
                     },
                 )
+                retire_chunks()
                 self.repo.update(
                     "jobs",
                     job_id,
@@ -268,13 +311,13 @@ class JobManager:
         from .transcription import transcribe
 
         lecture = self.repo.get("lectures", lecture_id)
-        if not lecture:
+        if not lecture or lecture.get("finalized_at"):
             return
         epoch = lecture.get("live_epoch", 0) if epoch is None else epoch
         if lecture.get("live_epoch", 0) != epoch:
             return
         chunk = next((c for c in self.repo.list_chunks(lecture_id) if c["sequence"] == sequence), None)
-        if not chunk or chunk.get("status") == "completed":
+        if not chunk or chunk.get("status") in {"completed", "archived"}:
             return
         try:
             settings = replace(self.settings, language=lecture.get("language") or self.settings.language)
@@ -286,7 +329,7 @@ class JobManager:
             ]
             with self.lock:
                 current = self.repo.get("lectures", lecture_id)
-                if not current or current.get("live_epoch", 0) != epoch:
+                if not current or current.get("finalized_at") or current.get("live_epoch", 0) != epoch:
                     return
                 self.repo.update_chunk(
                     lecture_id,
@@ -316,7 +359,7 @@ class JobManager:
         except Exception as exc:
             with self.lock:
                 current = self.repo.get("lectures", lecture_id)
-                if not current or current.get("live_epoch", 0) != epoch:
+                if not current or current.get("finalized_at") or current.get("live_epoch", 0) != epoch:
                     return
                 self.repo.update_chunk(lecture_id, sequence, {"status": "failed", "error": self._redact(exc)})
                 self.repo.update(

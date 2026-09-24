@@ -10,7 +10,9 @@ Full-lecture relevance now maps the entire transcript before classifying speech 
 course material, class logistics, off-topic, or needing review. Uncertain speech is
 retained in notes with uncertainty; the original transcript is never removed.
 Manual relevance changes mark saved notes outdated until regeneration.
-Compact recording merges and six-hour audio optimization are the next milestones.
+The backend supports ordered same-class recording merges and verified six-hour
+audio compression. Sources are preserved by merging; compression replaces an
+original only after full audio validation. Web UI integration is the next milestone.
 
 A local lecture library with Whisper transcription, OpenAI study notes, and a
 browser workspace. The combined MVP/v1/v2 implementation includes courses,
