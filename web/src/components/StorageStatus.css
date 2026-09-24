@@ -1,0 +1,17 @@
+.storage-status {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.storage-status > svg {
+  flex: 0 0 15px;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+.storage-status > span {
+  min-width: 0;
+}

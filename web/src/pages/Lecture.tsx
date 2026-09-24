@@ -37,6 +37,8 @@ import { NotesView, Review } from "../components/Notes";
 import { TranscriptView } from "../components/Transcript";
 import { Materials } from "../components/Materials";
 import { Preparation } from "../components/Preparation";
+import { RelevanceView } from "../components/RelevanceView";
+import { StorageStatus } from "../components/StorageStatus";
 
 export function Lecture({
   id,
@@ -206,8 +208,16 @@ export function Lecture({
   const active =
     activeStatus(lecture.status) ||
     Boolean(lecture.job && activeStatus(lecture.job.status));
-  const tabs = ["Notes", "Transcript", "Materials", "Review"].filter(
-    (name) => name !== "Transcript" || lecture.status !== "recording",
+  const tabs = [
+    "Notes",
+    "Transcript",
+    "Relevance",
+    "Materials",
+    "Review",
+  ].filter(
+    (name) =>
+      !["Transcript", "Relevance"].includes(name) ||
+      lecture.status !== "recording",
   );
   const visibleTab = tabs.includes(tab) ? tab : "Notes";
   const hasMedia = Boolean(lecture.media_type);
@@ -345,6 +355,7 @@ export function Lecture({
           <span>Imported transcript · No source recording</span>
         </div>
       )}
+      <StorageStatus lecture={lecture} />
       <Preparation
         key={lecture.id}
         lecture={lecture}
@@ -488,6 +499,8 @@ export function Lecture({
           />
         ) : visibleTab === "Materials" ? (
           <Materials lecture={lecture} onSaved={refresh} />
+        ) : visibleTab === "Relevance" ? (
+          <RelevanceView lecture={lecture} onSaved={refresh} onSeek={seek} />
         ) : (
           <Review lecture={lecture} />
         )}

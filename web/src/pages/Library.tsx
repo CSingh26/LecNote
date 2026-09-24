@@ -6,12 +6,14 @@ import {
   FileText,
   Library as LibraryIcon,
   Mic,
+  Merge,
   Plus,
   Search,
   Upload,
 } from "lucide-react";
 import type { Course, Lecture } from "../types";
 import { date, time, useResource } from "../lib/api";
+import { MergeRecordings } from "../components/MergeRecordings";
 import {
   Button,
   CourseSelect,
@@ -36,6 +38,7 @@ export function Library({
   const [course, setCourse] = useState(initialCourse);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
+  const [merging, setMerging] = useState(false);
   const lectures = useResource<Lecture[]>(
     `/lectures?course_id=${encodeURIComponent(course)}&q=${encodeURIComponent(query)}${version ? "&refresh=" + version : ""}`,
     4000,
@@ -50,6 +53,13 @@ export function Library({
         title="Library"
         actions={
           <>
+            <Button
+              icon={Merge}
+              onClick={() => setMerging(true)}
+              disabled={lectures.loading || !lectures.data?.length}
+            >
+              Merge recordings
+            </Button>
             <Button icon={Upload} onClick={() => onNew("transcript", course)}>
               Import transcript
             </Button>
@@ -210,6 +220,17 @@ export function Library({
             <ArrowUpRight size={14} />
           </a>
         </div>
+      )}
+      {merging && (
+        <MergeRecordings
+          lectures={lectures.data ?? []}
+          onClose={() => setMerging(false)}
+          onSaved={(lecture) => {
+            setMerging(false);
+            lectures.refresh();
+            window.location.hash = `/lecture/${encodeURIComponent(lecture.id)}`;
+          }}
+        />
       )}
     </>
   );

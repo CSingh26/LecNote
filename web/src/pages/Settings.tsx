@@ -40,7 +40,11 @@ function SettingsForm({
   initial: SettingsData;
   onSaved: () => void;
 }) {
-  const [values, setValues] = useState(initial);
+  const [values, setValues] = useState(() => ({
+    ...initial,
+    model: initial.model || "gpt-5.4-mini",
+    optimize_recordings: initial.optimize_recordings ?? true,
+  }));
   const [apiKey, setApiKey] = useState("");
   const [hfToken, setHfToken] = useState("");
   const [clearKey, setClearKey] = useState(false);
@@ -69,6 +73,7 @@ function SettingsForm({
         parallel_requests,
         language,
         diarization,
+        optimize_recordings,
         input_price_per_million,
         output_price_per_million,
       } = values;
@@ -79,6 +84,7 @@ function SettingsForm({
         parallel_requests,
         language,
         diarization,
+        optimize_recordings,
         input_price_per_million,
         output_price_per_million,
         ...(clearKey ? { api_key: "" } : apiKey ? { api_key: apiKey } : {}),
@@ -89,7 +95,11 @@ function SettingsForm({
             : {}),
       };
       const result = await api<SettingsData>("/settings", json("PUT", payload));
-      setValues(result);
+      setValues({
+        ...result,
+        model: result.model || "gpt-5.4-mini",
+        optimize_recordings: result.optimize_recordings ?? true,
+      });
       setApiKey("");
       setHfToken("");
       setClearKey(false);
@@ -164,6 +174,7 @@ function SettingsForm({
               onChange={(e) => update("model", e.target.value)}
             />
             <datalist id="note-models">
+              <option value="gpt-5.4-mini" />
               <option value="gpt-4.1-mini" />
               <option value="gpt-4.1" />
               <option value="gpt-4.1-nano" />
@@ -279,6 +290,22 @@ function SettingsForm({
               Remove saved Hugging Face token
             </label>
           )}
+        </div>
+      </section>
+      <section className="settings-section">
+        <div>
+          <h2>Recording storage</h2>
+        </div>
+        <div className="settings-fields">
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={values.optimize_recordings}
+              disabled={busy}
+              onChange={(e) => update("optimize_recordings", e.target.checked)}
+            />
+            Compress recordings automatically after six hours
+          </label>
         </div>
       </section>
       <section className="settings-section">

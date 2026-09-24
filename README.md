@@ -14,7 +14,9 @@ The backend supports ordered same-class recording merges and verified six-hour
 audio compression. Sources are preserved by merging; compression replaces an
 original only after full audio validation. The Web UI now includes class resource
 storage, saved lecture preparation, and the source history for generated notes.
-Relevance, merge, and compression controls are the next UI milestone.
+The Library can merge ordered recording parts; the lecture Relevance tab supports
+filters and manual classifications. Compression status and workspace/class
+preferences are available without changing the running v1.0.0 app.
 
 A local lecture library with Whisper transcription, OpenAI study notes, and a
 browser workspace. The combined MVP/v1/v2 implementation includes courses,

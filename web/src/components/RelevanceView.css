@@ -1,0 +1,103 @@
+.relevance-view {
+  min-width: 0;
+}
+.relevance-topic-map {
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.relevance-topic-map ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+.relevance-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+.relevance-filters button {
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 12px 0;
+  font-size: 13px;
+  min-height: 44px;
+}
+.relevance-filters button[aria-pressed="true"] {
+  border-bottom-color: var(--green);
+  color: var(--green);
+}
+.relevance-filters button:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
+}
+.relevance-segment {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) 175px;
+  align-items: start;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.relevance-segment > .timestamp {
+  min-height: 36px;
+  width: 90px;
+  font-variant-numeric: tabular-nums;
+  justify-content: flex-start;
+}
+.relevance-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.relevance-content p {
+  white-space: pre-wrap;
+}
+.relevance-content small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+}
+.relevance-needs_review .relevance-content small {
+  color: var(--amber);
+}
+.relevance-off_topic .relevance-content small {
+  color: var(--rose);
+}
+.relevance-segment select {
+  width: 100%;
+  font-size: 13px;
+  padding: 8px 24px 8px 8px;
+}
+.relevance-save-status {
+  color: var(--amber);
+  font-size: 13px;
+  padding: 0 0 12px;
+}
+.relevance-empty {
+  padding: 16px 0;
+}
+@media (max-width: 760px) {
+  .relevance-segment {
+    grid-template-columns: 80px minmax(0, 1fr);
+    gap: 10px;
+  }
+  .relevance-segment > .timestamp {
+    width: 80px;
+  }
+  .relevance-segment select {
+    grid-column: 2;
+    width: 175px;
+  }
+}
+@media (max-width: 380px) {
+  .relevance-segment {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .relevance-segment select {
+    grid-column: 1;
+  }
+}

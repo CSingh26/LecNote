@@ -169,6 +169,11 @@ function CourseForm({
   const [context, setContext] = useState(course?.context ?? "");
   const [vocabulary, setVocabulary] = useState(course?.vocabulary ?? "");
   const [color, setColor] = useState(course?.color ?? colors[0]);
+  const [compression, setCompression] = useState(
+    course?.optimize_recordings == null
+      ? "inherit"
+      : String(course.optimize_recordings),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   async function submit(event: FormEvent) {
@@ -184,6 +189,8 @@ function CourseForm({
           color,
           context,
           vocabulary,
+          optimize_recordings:
+            compression === "inherit" ? null : compression === "true",
         }),
       );
       onSaved();
@@ -250,6 +257,16 @@ function CourseForm({
             />
           </Field>
           <ErrorNotice error={error} />
+          <Field label="Audio compression">
+            <select
+              value={compression}
+              onChange={(event) => setCompression(event.target.value)}
+            >
+              <option value="inherit">Workspace setting</option>
+              <option value="true">Compress after six hours</option>
+              <option value="false">Keep original audio</option>
+            </select>
+          </Field>
         </div>
         <footer>
           <Button onClick={onClose} disabled={busy}>

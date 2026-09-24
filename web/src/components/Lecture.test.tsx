@@ -59,6 +59,24 @@ it("does not request media for an imported transcript", async () => {
     screen.queryByRole("button", { name: "Transcribe locally" }),
   ).not.toBeInTheDocument();
 });
+it("opens relevance review on the lecture and hides it while recording", async () => {
+  const user = userEvent.setup();
+  const view = render(<Lecture {...props} />);
+  await user.click(
+    await screen.findByRole("tab", { name: "Relevance" }),
+  );
+  expect(screen.getByLabelText("Category for segment 0")).toBeInTheDocument();
+  view.unmount();
+  lecture = { ...base, status: "recording" };
+  render(<Lecture {...props} />);
+  await screen.findByText("Imported lesson");
+  expect(
+    screen.queryByRole("tab", { name: "Relevance" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("tab", { name: "Transcript" }),
+  ).not.toBeInTheDocument();
+});
 it("sends local transcription and the saved diarization default explicitly", async () => {
   lecture = {
     ...base,
