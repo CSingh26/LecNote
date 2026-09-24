@@ -10,7 +10,7 @@ FROM python:3.12-slim-bookworm
 
 LABEL org.opencontainers.image.source="https://github.com/CSingh26/LecNote" \
       org.opencontainers.image.description="Local lecture transcription and OpenAI study notes" \
-      org.opencontainers.image.licenses="UNLICENSED"
+      org.opencontainers.image.licenses="MIT"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg libgomp1 tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 COPY pyproject.toml ./
+COPY LICENSE ./
 COPY lecnote/ ./lecnote/
 RUN pip install --no-cache-dir . \
     && useradd --uid 10001 --create-home lecnote \

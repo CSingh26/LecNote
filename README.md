@@ -213,6 +213,11 @@ checks were also performed. An actual OpenAI generation run still needs a user
 API key; no live OpenAI call is claimed as tested.
 See [the verification record](docs/verification.md) for test scope and browser checks.
 
+## License
+
+LecNote's source code is licensed under the [MIT License](LICENSE). Third-party
+dependencies retain their own licenses.
+
 ## Build milestones
 
 1. Product design, architecture, API contract and dependency foundation.
