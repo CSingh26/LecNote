@@ -194,7 +194,22 @@ class JobManager:
                 force=job.get("force", False),
                 transcribe_only=job.get("transcribe_only", False),
             )
-            result = (self.pipeline or run_pipeline)(lecture, settings, progress, cancelled)
+            def checkpoint(values):
+                with self.lock:
+                    if cancelled():
+                        raise PipelineCancelled("Cancelled")
+                    current = self.repo.get("lectures", lecture_id)
+                    changes = dict(values)
+                    if "transcript" in values:
+                        changes["duration"] = values["transcript"]["duration"]
+                        if current.get("transcript") != values["transcript"]:
+                            changes.update(relevance=None, notes_stale=bool(current.get("notes")))
+                    self.repo.update("lectures", lecture_id, changes)
+
+            if self.pipeline:
+                result = self.pipeline(lecture, settings, progress, cancelled)
+            else:
+                result = run_pipeline(lecture, settings, progress, cancelled, checkpoint=checkpoint)
             with self.lock:
                 if cancelled():
                     raise PipelineCancelled("Cancelled")
@@ -206,6 +221,7 @@ class JobManager:
                         "transcript": result["transcript"],
                         "notes": saved_notes,
                         "resource_provenance": lecture.get("resource_provenance", []),
+                        "relevance": result.get("relevance", lecture.get("relevance")),
                         "notes_stale": False
                         if result["notes"]
                         else bool(saved_notes)

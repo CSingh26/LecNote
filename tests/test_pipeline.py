@@ -6,7 +6,36 @@ from collections import Counter
 from types import SimpleNamespace
 
 import pytest
-from test_notes import chunk_data, install_provider, overview_data, response
+from test_notes import chunk_data, overview_data, response
+from test_notes import install_provider as install_notes_provider
+
+
+def install_provider(monkeypatch, handler):
+    """Keep legacy note-stage assertions focused while mocking the new AI stages."""
+
+    def parse(**kwargs):
+        schema = kwargs["text_format"].__name__
+        payload = json.loads(kwargs["input"])
+        if schema == "TopicMap":
+            return response({"summary": "Motion", "topics": ["Velocity"]}, kwargs["text_format"])
+        if schema == "ClassificationBatch":
+            return response(
+                {
+                    "segments": [
+                        {
+                            "segment_id": s["id"],
+                            "category": "course_material",
+                            "reason": "Course teaching",
+                            "confidence": 0.95,
+                        }
+                        for s in payload["segments"]
+                    ]
+                },
+                kwargs["text_format"],
+            )
+        return handler(**kwargs)
+
+    return install_notes_provider(monkeypatch, parse)
 
 
 @pytest.fixture(autouse=True)
@@ -105,7 +134,7 @@ def test_complete_run_is_cached_and_tracks_usage_without_invented_prices(tmp_pat
     calls = provider(monkeypatch)
     lecture, settings = make_lecture(), make_settings(tmp_path)
     first = run(lecture, settings)
-    assert first["notes"]["usage"] == {"input_tokens": 400, "output_tokens": 160}
+    assert first["notes"]["usage"] == {"input_tokens": 600, "output_tokens": 240}
     assert len(first["notes"]["chunks"]) == 3
     assert "cost" not in first["notes"]
     assert (settings.lecture_dir(lecture["id"]) / "transcript.json").is_file()
@@ -125,7 +154,7 @@ def test_resume_retains_completed_chunks_after_failure(tmp_path, monkeypatch):
     resumed = provider(monkeypatch)
     result = run(lecture, settings)
     assert resumed == {1: 1, 2: 1, "overview": 1}
-    assert result["notes"]["usage"]["input_tokens"] == 400
+    assert result["notes"]["usage"]["input_tokens"] == 600
 
 
 @pytest.mark.parametrize(

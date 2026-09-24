@@ -29,6 +29,7 @@ from .requests import (
     TranscriptInput,
 )
 from .resources import generation_inputs, install_resources, preparation_ready
+from .review_api import install_review
 
 MEDIA = {
     ".wav": "audio/wav",
@@ -637,6 +638,7 @@ def create_app(settings: Settings | None = None, start_worker=True):
             return public_lecture(get_lecture(lecture_id))
 
     install_resources(app, repo, settings, manager, check_course, editable, public_lecture, save_upload)
+    install_review(app, repo, manager, editable, public_lecture)
 
     web = Path(__file__).resolve().parent.parent / "web" / "dist"
     if (web / "assets").exists():

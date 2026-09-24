@@ -23,6 +23,7 @@ class CourseInput(Input):
     color: str = Field(default="#26715b", pattern=r"^#[0-9a-fA-F]{6}$")
     context: str = Field(default="", max_length=100000)
     vocabulary: str = Field(default="", max_length=10000)
+    optimize_recordings: bool | None = None
 
 
 class CoursePatch(Input):
@@ -31,6 +32,7 @@ class CoursePatch(Input):
     color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
     context: str | None = Field(default=None, max_length=100000)
     vocabulary: str | None = Field(default=None, max_length=10000)
+    optimize_recordings: bool | None = None
 
 
 class LecturePatch(Input):
@@ -71,6 +73,7 @@ class SettingsInput(Input):
     parallel_requests: int | None = Field(default=None, ge=1, le=4)
     language: str | None = Field(default=None, max_length=20)
     diarization: bool | None = None
+    optimize_recordings: bool | None = None
     api_key: str | None = Field(default=None, max_length=500)
     hf_token: str | None = Field(default=None, max_length=500)
     input_price_per_million: float | None = Field(default=None, ge=0, le=10000)

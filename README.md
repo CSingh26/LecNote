@@ -6,8 +6,11 @@ Development is isolated on branch `v1.0.1`; the existing v1.0.0 app remains unch
 Class libraries now store reusable local materials and typed notes. Recording/import
 processing only transcribes locally. AI notes require a recording note or explicitly
 selected readable resources from the lecture's class, followed by Generate notes.
-Full-lecture relevance, compact recording merges, and six-hour audio optimization
-are the next milestones on this branch.
+Full-lecture relevance now maps the entire transcript before classifying speech as
+course material, class logistics, off-topic, or needing review. Uncertain speech is
+retained in notes with uncertainty; the original transcript is never removed.
+Manual relevance changes mark saved notes outdated until regeneration.
+Compact recording merges and six-hour audio optimization are the next milestones.
 
 A local lecture library with Whisper transcription, OpenAI study notes, and a
 browser workspace. The combined MVP/v1/v2 implementation includes courses,
@@ -102,7 +105,8 @@ a container on your laptop.
 | Exports | Markdown, standalone HTML, PDF, and JSON; includes personal annotations |
 | Usage | Input/output token counts, optional estimates from user-supplied per-million prices |
 
-The default note model is `gpt-4.1-mini`; choose another Responses-compatible
+The default note model is `gpt-5.4-mini` with low reasoning effort; saved custom
+model selections remain unchanged. Choose another Responses-compatible
 Structured Outputs model in Settings or `LN_MODEL`. Approximately eight-minute
 chunks generate up to four at a time; only one lecture pipeline runs at once.
 Changing source text, context, model, prompt, or chunk settings invalidates

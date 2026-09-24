@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from . import notes as note_service
 from .context import SupportingContext
+from .relevance import analyze_relevance
 from .schemas import (
     MAX_CHUNK_CHARACTERS,
     MAX_CHUNKS,
@@ -91,6 +92,38 @@ def _file_digest(path: Path, check):
     return digest.hexdigest()
 
 
+def _stage_request(generator, cache_dir, base_key):
+    """Cache each bounded provider request, including completed reduction nodes."""
+
+    def request(schema, instructions, payload, validate=None):
+        generator._check_cancelled()
+        key = _digest(
+            {
+                "base": base_key,
+                "schema": schema.model_json_schema(),
+                "instructions": instructions,
+                "payload": payload,
+                "model": generator.settings.model,
+                "reasoning": note_service.reasoning_options(generator.settings.model),
+                "max_output_tokens": note_service.MAX_OUTPUT_TOKENS,
+            }
+        )
+        path = cache_dir / f"{schema.__name__}-{key}.json"
+        cached = _read_stage(path, key, schema)
+        if cached:
+            try:
+                if validate:
+                    validate(cached[0])
+                return cached
+            except ValueError:
+                pass
+        value, usage = generator._request(schema, instructions, payload, validate)
+        _save_stage(path, key, value.model_dump(), usage)
+        return value, usage
+
+    return request
+
+
 def chunk_transcript(transcript: dict, chunk_minutes: float = 8) -> list[dict]:
     transcript = Transcript.model_validate(transcript).model_dump()
     if not math.isfinite(chunk_minutes) or not 0.25 <= chunk_minutes <= 60:
@@ -112,8 +145,10 @@ def chunk_transcript(transcript: dict, chunk_minutes: float = 8) -> list[dict]:
     for segment in transcript["segments"]:
         if not segment["text"].strip():
             continue
-        size = len(segment["text"])
-        if current and (segment["start"] >= window_end or characters + size > MAX_CHUNK_CHARACTERS):
+        size = note_service.encoded_size(segment) + 2
+        if current and (
+            segment["start"] >= window_end or characters + size > MAX_CHUNK_CHARACTERS or len(current) >= 64
+        ):
             append_chunk()
             current, characters = [], 0
         if not current:
@@ -130,7 +165,7 @@ def chunk_transcript(transcript: dict, chunk_minutes: float = 8) -> list[dict]:
     return chunks
 
 
-def run_pipeline(lecture: dict, settings, progress, is_cancelled) -> dict:
+def run_pipeline(lecture: dict, settings, progress, is_cancelled, checkpoint=None) -> dict:
     def check():
         if is_cancelled():
             raise PipelineCancelled("Processing cancelled; completed stages are saved for resume")
@@ -178,6 +213,8 @@ def run_pipeline(lecture: dict, settings, progress, is_cancelled) -> dict:
             )
             _save_stage(transcription_path, transcription_key, transcript.model_dump())
     atomic_json(root / "transcript.json", transcript.model_dump())
+    if checkpoint:
+        checkpoint({"transcript": transcript.model_dump()})
     check()
     diarize = lecture.get("diarize", getattr(settings, "diarization", False))
     if diarize:
@@ -200,22 +237,60 @@ def run_pipeline(lecture: dict, settings, progress, is_cancelled) -> dict:
             transcript = Transcript.model_validate(transcript.model_dump() | {"segments": segments})
             _save_stage(speaker_path, speaker_key, transcript.model_dump())
         atomic_json(root / "transcript.json", transcript.model_dump())
+        if checkpoint:
+            checkpoint({"transcript": transcript.model_dump()})
     check()
     if lecture.get("transcribe_only"):
         progress("ready", 100, "Local transcription ready")
         return {"transcript": transcript.model_dump(), "notes": None}
     context = SupportingContext(lecture)
-    chunks = chunk_transcript(transcript.model_dump(), settings.chunk_minutes)
+    # Validate the original speech before paying for analysis. Re-chunk retained
+    # segments so citations can never point into excluded conversation.
+    chunk_transcript(transcript.model_dump(), settings.chunk_minutes)
+    relevance = analyze_relevance(transcript, lecture, settings, root, context, check, progress)
+    if checkpoint:
+        checkpoint({"relevance": relevance.model_dump()})
+    categories = {s.segment_id: s.category for s in relevance.segments}
+    retained = transcript.model_dump()
+    retained["segments"] = [
+        s for s in retained["segments"] if categories[s["id"]] in {"course_material", "needs_review"}
+    ]
+    chunks = (
+        chunk_transcript(retained, settings.chunk_minutes)
+        if any(s["text"].strip() for s in retained["segments"])
+        else []
+    )
+    for chunk in chunks:
+        for segment in chunk["segments"]:
+            segment["relevance"] = categories[segment["id"]]
+    provenance = {
+        "title": lecture.get("title") or "Lecture",
+        "course_id": lecture.get("course_id"),
+        "course_title": lecture.get("course_title") or lecture.get("course_name") or "",
+        "selected_resource_ids": lecture.get("selected_resource_ids") or [],
+        "resource_provenance": lecture.get("resource_provenance") or [],
+        "context": lecture.get("context") or "",
+        "course_context": lecture.get("course_context") or "",
+        "relevance_fingerprint": relevance.fingerprint,
+    }
     cache_key = _digest(
         {
             "source": source_hash,
             "transcript": transcript.model_dump(),
+            "relevance": relevance.model_dump(exclude={"usage"}),
+            "provenance": provenance,
             "context": {"title": context.title, "sources": context.sources}
-            if context.limited else context.full,
+            if context.limited
+            else context.full,
             **({"context_selection": "relevant-excerpts-v1"} if context.limited else {}),
             "model": settings.model,
+            "reasoning": note_service.reasoning_options(settings.model),
             "prompt": note_service.PROMPT_VERSION,
-            "instructions": [note_service.CHUNK_INSTRUCTIONS, note_service.OVERVIEW_INSTRUCTIONS],
+            "instructions": [
+                note_service.CHUNK_INSTRUCTIONS,
+                note_service.OVERVIEW_INSTRUCTIONS,
+                note_service.COMPACT_INSTRUCTIONS,
+            ],
             "settings": {
                 "chunk_minutes": settings.chunk_minutes,
                 "language": language,
@@ -303,21 +378,45 @@ def run_pipeline(lecture: dict, settings, progress, is_cancelled) -> dict:
         # a stale overview even under the same original source key.
         overview_key = _digest({"key": cache_key, "chunks": [c.model_dump() for c in ordered]})
         cached = _read_stage(overview_path, overview_key, LectureOverview)
-        if cached:
+        if not ordered:
+            overview, overview_usage = (
+                LectureOverview(
+                    title=lecture.get("title") or "Lecture",
+                    overview="No course material was identified. "
+                    "Class logistics and relevance decisions are available separately; the full transcript is preserved.",
+                    takeaways=[],
+                    glossary=[],
+                    review_questions=[],
+                ),
+                Usage(),
+            )
+        elif cached:
             overview, overview_usage = cached
         else:
             query = " ".join(note.title + " " + note.summary for note in ordered)
             overview, overview_usage = generator.summarize(
-                ordered, lecture.get("title", "Lecture"), context.select(query)
+                ordered,
+                lecture.get("title", "Lecture"),
+                context.select(query),
+                request=_stage_request(generator, cache_dir / "summaries", overview_key),
             )
             _save_stage(overview_path, overview_key, overview.model_dump(), overview_usage)
         check()
         total_usage = Usage(
-            input_tokens=sum(u.input_tokens for u in usage_by_chunk.values()) + overview_usage.input_tokens,
+            input_tokens=sum(u.input_tokens for u in usage_by_chunk.values())
+            + overview_usage.input_tokens
+            + relevance.usage.input_tokens,
             output_tokens=sum(u.output_tokens for u in usage_by_chunk.values())
-            + overview_usage.output_tokens,
+            + overview_usage.output_tokens
+            + relevance.usage.output_tokens,
         )
-        result = Notes(**overview.model_dump(), chunks=ordered, usage=total_usage, model=settings.model)
+        result = Notes(
+            **overview.model_dump(),
+            chunks=ordered,
+            usage=total_usage,
+            model=settings.model,
+            provenance=provenance,
+        )
         from .exports import render_visual_assets
 
         progress("generating", 95, "Rendering local study visuals")
@@ -325,6 +424,10 @@ def run_pipeline(lecture: dict, settings, progress, is_cancelled) -> dict:
         check()
         atomic_json(root / "notes.json", result.model_dump())
         progress("ready", 100, "Lecture notes ready")
-        return {"transcript": transcript.model_dump(), "notes": result.model_dump()}
+        return {
+            "transcript": transcript.model_dump(),
+            "notes": result.model_dump(),
+            "relevance": relevance.model_dump(),
+        }
     finally:
         generator.close()

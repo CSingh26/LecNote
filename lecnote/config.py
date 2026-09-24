@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 @dataclass
 class Settings:
     data_dir: Path
-    model: str = "gpt-4.1-mini"
+    model: str = "gpt-5.4-mini"
     api_key: str = ""
     whisper_model: str = "base"
     chunk_minutes: float = 8
@@ -21,6 +21,7 @@ class Settings:
     hf_token: str = ""
     input_price_per_million: float = 0
     output_price_per_million: float = 0
+    optimize_recordings: bool = True
 
     def __post_init__(self):
         self.data_dir = Path(self.data_dir).expanduser().resolve()
@@ -31,7 +32,7 @@ class Settings:
         load_dotenv()
         root = Path(data_dir or os.getenv("LN_DATA_DIR", "data")).expanduser().resolve()
         values = {
-            "model": os.getenv("LN_MODEL", "gpt-4.1-mini"),
+            "model": os.getenv("LN_MODEL", "gpt-5.4-mini"),
             "api_key": os.getenv("OPENAI_API_KEY", ""),
             "whisper_model": os.getenv("LN_WHISPER_MODEL", "base"),
             "chunk_minutes": float(os.getenv("LN_CHUNK_MINUTES", "8")),

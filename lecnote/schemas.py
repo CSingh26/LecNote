@@ -1,7 +1,7 @@
 """Validated storage and Structured Outputs contracts for lecture processing."""
 
 import re
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -10,7 +10,7 @@ MAX_SEGMENT_CHARACTERS = 16_000
 MAX_CONTEXT_CHARACTERS = 24_000
 MAX_REQUEST_CHARACTERS = 120_000
 MAX_CHUNK_CHARACTERS = 24_000
-MAX_CHUNKS = 512
+MAX_CHUNKS = 30_000
 
 ShortText = Annotated[str, Field(max_length=500)]
 Text = Annotated[str, Field(max_length=4000)]
@@ -170,7 +170,48 @@ class Usage(Schema):
     output_tokens: Annotated[int, Field(ge=0)] = 0
 
 
+RelevanceCategory = Literal["course_material", "class_logistics", "off_topic", "needs_review"]
+
+
+class TopicMap(Schema):
+    summary: Annotated[str, Field(max_length=2000)]
+    topics: Annotated[list[Annotated[str, Field(max_length=240)]], Field(max_length=24)]
+
+
+class CompactSummary(Schema):
+    summary: Annotated[str, Field(max_length=2000)]
+    facts: Annotated[list[Annotated[str, Field(max_length=300)]], Field(max_length=12)]
+
+
+class SegmentClassification(Schema):
+    segment_id: Annotated[int, Field(ge=0)]
+    category: RelevanceCategory
+    reason: Annotated[str, Field(max_length=240)]
+    confidence: Annotated[float, Field(ge=0, le=1)]
+
+
+class ClassificationBatch(Schema):
+    segments: Annotated[list[SegmentClassification], Field(max_length=64)]
+
+
+class SegmentRelevance(SegmentClassification):
+    start: Seconds
+    end: Seconds
+    text: Annotated[str, Field(max_length=MAX_SEGMENT_CHARACTERS)]
+    source: Literal["ai", "manual", "fallback"]
+
+
+class RelevanceAnalysis(Schema):
+    version: str
+    fingerprint: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
+    topic_map: TopicMap
+    segments: Annotated[list[SegmentRelevance], Field(max_length=30_000)]
+    logistics: Annotated[list[SegmentRelevance], Field(max_length=30_000)]
+    usage: Usage
+
+
 class Notes(LectureOverview):
     chunks: Annotated[list[ChunkNote], Field(max_length=MAX_CHUNKS)]
     usage: Usage
     model: ShortText
+    provenance: dict[str, Any] = Field(default_factory=dict)
