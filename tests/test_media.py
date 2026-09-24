@@ -72,6 +72,22 @@ def lecture(library, identifier, duration=1, **values):
     return repo.get("lectures", identifier)
 
 
+def test_validation_preserves_stream_duration_when_decode_progress_is_short(library, monkeypatch):
+    _, _, service = library
+    monkeypatch.setattr(service, "_probe", lambda *a, **kw: (2.0, False))
+    monkeypatch.setattr(service, "_run", lambda *a, **kw: "out_time_us=1950667\nprogress=end\n")
+    assert service._validate(Path("recording.wav"), expected=2.0) == 2.0
+
+
+@pytest.mark.parametrize("progress", [0, 1_500_000, 2_500_000])
+def test_validation_still_rejects_incomplete_or_mismatched_decode(library, monkeypatch, progress):
+    _, _, service = library
+    monkeypatch.setattr(service, "_probe", lambda *a, **kw: (2.0, False))
+    monkeypatch.setattr(service, "_run", lambda *a, **kw: f"out_time_us={progress}\nprogress=end\n")
+    with pytest.raises(MediaError, match="Decoded audio duration"):
+        service._validate(Path("recording.wav"))
+
+
 @real_audio
 def test_merge_order_offsets_provenance_and_sources_unchanged(library):
     repo, _, service = library

@@ -278,7 +278,9 @@ class MediaService:
             abs(decoded - expected) > _tolerance(expected) or abs(measured - expected) > _tolerance(expected)
         ):
             raise MediaError("Replacement duration does not match the original audio")
-        return decoded
+        # Decode progress can trail the stream duration across FFmpeg versions.
+        # Keep the verified stream timeline for merge offsets and saved duration.
+        return measured
 
     def _encode(self, paths, target, *, cancelled=None):
         command = ["ffmpeg", "-nostdin", "-v", "error", "-xerror", "-y"]

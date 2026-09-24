@@ -6,7 +6,7 @@ Work and test libraries are isolated from the running v1.0.0 checkout and record
 No running-app restart, branch switch, data migration, physical microphone capture,
 paid OpenAI request, or Docker image execution was performed for this branch.
 
-- Python: 300 tests passed; Ruff and Git whitespace checks passed.
+- Python: 304 tests passed; Ruff and Git whitespace checks passed.
 - Frontend: 77 unit tests and 13 Chromium browser tests passed; production build passed.
 - The real API plus production UI smoke passed class creation/resources, preparation,
   deterministic note generation, manual relevance edits, notes retention across class
@@ -19,6 +19,10 @@ paid OpenAI request, or Docker image execution was performed for this branch.
   verification does not wait six hours or use a real multi-hour recording.
 - Branch CI includes FFmpeg, frontend/browser tests, production build, and the isolated
   API smoke. Image publishing intentionally remains restricted to version tags.
+- The initial expanded Ubuntu CI exposed shortened FFmpeg progress timestamps in
+  merged transcript offsets. The correction uses the verified stream duration and
+  adds regression tests for short progress and incomplete decoding; the corrective
+  push reruns the full branch workflow.
 
 Run `npm --prefix web run test:browser` to start and stop an isolated Vite test server
 automatically on port 4175. API traffic and recording inputs in that suite are fixtures.
