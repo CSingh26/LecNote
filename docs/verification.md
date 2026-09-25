@@ -1,5 +1,20 @@
 # Verification record
 
+## Post-v1.0.1 uploads and container migration
+
+- 422 backend tests, 89 frontend tests, and 13 browser tests passed locally.
+- Production build, Ruff, and whitespace checks passed.
+- Real DOCX/PPTX/XLSX fixtures, code and extensionless text, download-only binary
+  files, XML/ZIP limits, and safe original-file response headers are covered.
+- Offline migration tests cover WAL preservation, saved notes/transcripts, path
+  relocation, unchanged originals, checksums, active-library refusal, no-overwrite,
+  and concurrent database changes before and after the SQLite backup.
+- `tests/verify_container_library.py` performs read-only live acceptance against
+  an offline backup, comparing saved data and streamed file checksums without
+  printing private content or making paid generation requests.
+- Actual migration receipts and local library copies are private deployment data,
+  not repository artifacts. See the [migration guide](container-migration.md).
+
 ## v1.0.1 isolated verification
 
 Work and test libraries are isolated from the running v1.0.0 checkout and recording.

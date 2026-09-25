@@ -27,6 +27,13 @@ recording imports, live microphone capture, timestamp-linked playback,
 transcript correction, local slide/whiteboard extraction, review questions,
 search, course glossary, resumable jobs, and Markdown/HTML/PDF/JSON exports.
 
+Class resources and lecture materials accept all file types, including code files,
+up to 30 MiB each. Text/code, PDF, supported images, Word (`.docx`), PowerPoint
+(`.pptx`), and Excel (`.xlsx`) have local text extraction. Other files remain
+downloadable even when they cannot provide text for note generation. Files and
+macros are never executed. These additions are on `main` after the v1.0.1 tag;
+build the current source to include them.
+
 ## Core features
 
 The app includes the desktop-first Web UI, microphone and
@@ -83,6 +90,10 @@ For frontend development, run the Python server on port 8765 and
 server. The production build is served directly by Python without Node running.
 
 ### Container image
+
+Moving an existing installation? Follow the [verified library migration guide](docs/container-migration.md)
+to preserve recordings, materials, settings, and database records without modifying
+the original library. The migration tool is available in the current `main` source.
 
 The image bundles the Web UI, Python server, FFmpeg, Tesseract OCR, and the
 local Whisper runtime. It stores the library and downloaded model weights in

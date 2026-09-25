@@ -85,6 +85,40 @@ const pageProps = {
   seekTo: null,
 };
 
+it("prevents download-only arbitrary files from being selected for generation", async () => {
+  lecture = { ...base, course_id: "math" };
+  resources = [
+    {
+      ...resource,
+      id: "binary",
+      name: "data.bin",
+      kind: "bin",
+      text: "",
+      error: "Download only",
+    },
+    {
+      ...resource,
+      id: "code",
+      name: "example.py",
+      kind: "py",
+      text: "print('readable')",
+    },
+  ];
+  const events = callbacks();
+  const user = userEvent.setup();
+  render(<Preparation lecture={lecture} {...events} />);
+  const binary = await screen.findByRole("checkbox", { name: /data.bin/ });
+  expect(binary).toBeDisabled();
+  await user.click(binary);
+  expect(binary).not.toBeChecked();
+  expect(events.onReady).toHaveBeenLastCalledWith(false);
+  await user.click(screen.getByRole("checkbox", { name: /example.py/ }));
+  await user.click(screen.getByRole("button", { name: "Save preparation" }));
+  expect(
+    JSON.parse(calls[0].init.body as string).selected_resource_ids,
+  ).toEqual(["code"]);
+});
+
 it("saves a recording note without a course and clears dirty state only after success", async () => {
   const user = userEvent.setup();
   const events = callbacks();

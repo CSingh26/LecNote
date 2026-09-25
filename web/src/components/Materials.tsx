@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import {
   ExternalLink,
+  File,
   FileText,
-  Image,
   Paperclip,
   Trash2,
   Upload,
@@ -10,6 +10,9 @@ import {
 import type { Attachment, Lecture } from "../types";
 import { api, date, json, lecturePath, message } from "../lib/api";
 import { Button, Confirm, Empty, ErrorNotice, IconButton, Modal } from "./ui";
+
+const imageKind = (kind: string) =>
+  ["png", "jpg", "jpeg", "webp"].includes(kind);
 
 export function Materials({
   lecture,
@@ -68,9 +71,7 @@ export function Materials({
       <div className="split">
         <div>
           <h2>Source materials</h2>
-          <p className="muted">
-            Slides, readings, and whiteboard images for this lecture.
-          </p>
+          <p className="muted">Any file type, up to 30 MiB each.</p>
         </div>
         <Button
           icon={Upload}
@@ -86,7 +87,7 @@ export function Materials({
           aria-label="Upload source materials"
           type="file"
           multiple
-          accept=".txt,.md,.pdf,.png,.jpg,.jpeg,.webp"
+          disabled={busy}
           onChange={(e) => void upload(e.target.files)}
         />
       </div>
@@ -100,7 +101,7 @@ export function Materials({
                 onClick={() => setSelected(attachment)}
                 aria-label={`View ${attachment.name}`}
               >
-                {/\.(png|jpe?g|webp)$/i.test(attachment.name) ? (
+                {imageKind(attachment.kind) ? (
                   <img
                     src={path(attachment)}
                     alt={attachment.name}
@@ -108,10 +109,12 @@ export function Materials({
                   />
                 ) : (
                   <>
-                    <FileText size={36} />
-                    <span>
-                      {attachment.name.split(".").pop()?.toUpperCase()}
-                    </span>
+                    {["txt", "md", "pdf"].includes(attachment.kind) ? (
+                      <FileText size={36} />
+                    ) : (
+                      <File size={36} />
+                    )}
+                    <span>{attachment.kind.toUpperCase() || "FILE"}</span>
                   </>
                 )}
               </button>
@@ -151,22 +154,21 @@ export function Materials({
           ))}
         </div>
       ) : (
-        <Empty icon={Paperclip} title="Bring the context along">
-          Attach a PDF, text document, or image. Text is extracted locally for
-          note generation.
+        <Empty icon={Paperclip} title="No source materials yet">
+          Add files for this lecture. Originals are kept for download.
         </Empty>
       )}
       {selected && (
         <Modal title={selected.name} wide onClose={() => setSelected(null)}>
           <div className="modal-body preview-body">
-            {/\.(png|jpe?g|webp)$/i.test(selected.name) ? (
+            {imageKind(selected.kind) ? (
               <img src={path(selected)} alt={selected.name} />
-            ) : /\.pdf$/i.test(selected.name) ? (
+            ) : selected.kind === "pdf" ? (
               <iframe sandbox="" title={selected.name} src={path(selected)} />
             ) : (
               <pre className="text-preview">
                 {selected.text ||
-                  "No extracted text available. Open the source file to view it."}
+                  "No readable text. The original is available for download."}
               </pre>
             )}
             <ErrorNotice error={selected.error || ""} />
@@ -176,7 +178,7 @@ export function Materials({
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Image size={16} />
+              <ExternalLink size={16} />
               Open source
             </a>
             {selected.text && (

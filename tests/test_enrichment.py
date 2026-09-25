@@ -85,7 +85,7 @@ def test_invalid_context_has_actionable_errors(enrichment, tmp_path, kind, match
     elif kind == "empty":
         source.write_text("")
     elif kind == "binary":
-        source.write_bytes(b"\xff\xfe\x00\x01")
+        source.write_bytes(b"\xff\xfe\x00")
     elif kind == "unsupported":
         source = tmp_path / "source.docx"
         source.write_bytes(b"not a supported attachment")

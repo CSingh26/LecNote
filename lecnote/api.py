@@ -18,6 +18,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .config import Settings
 from .db import Repository, now
+from .file_responses import original_file_response
 from .jobs import JobManager
 from .media import transcript_provenance
 from .media_api import install_media
@@ -46,7 +47,6 @@ MEDIA = {
     ".mov": "video/quicktime",
     ".aac": "audio/aac",
 }
-MATERIALS = {".txt", ".md", ".pdf", ".png", ".jpg", ".jpeg", ".webp"}
 
 
 async def save_upload(upload, path, limit):
@@ -414,8 +414,6 @@ def create_app(settings: Settings | None = None, start_worker=True):
         editable(lecture_id)
         name = Path((file.filename or "material").replace("\\", "/")).name
         suffix = Path(name).suffix.lower()
-        if suffix not in MATERIALS:
-            raise HTTPException(415, "Choose a PDF, text file, or image")
         identifier = str(uuid4())
         folder = settings.lecture_dir(lecture_id) / "attachments"
         folder.mkdir(exist_ok=True)
@@ -424,7 +422,7 @@ def create_app(settings: Settings | None = None, start_worker=True):
         error, text = None, ""
         try:
             text = await run_in_threadpool(extract_context, path)
-            if len(text) > 100000:
+            if len(text) >= 100000:
                 text = text[:100000]
                 error = "Only the first 100,000 characters are used as context"
         except (RuntimeError, ValueError, OSError) as exc:
@@ -466,7 +464,7 @@ def create_app(settings: Settings | None = None, start_worker=True):
     @app.get("/api/lectures/{lecture_id}/attachments/{attachment_id}")
     def attachment(lecture_id: str, attachment_id: str):
         _, item = get_attachment(lecture_id, attachment_id)
-        return FileResponse(item["path"], filename=item["name"], content_disposition_type="inline")
+        return original_file_response(item)
 
     @app.delete("/api/lectures/{lecture_id}/attachments/{attachment_id}", status_code=204)
     def delete_attachment(lecture_id: str, attachment_id: str):

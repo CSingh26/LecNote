@@ -17,6 +17,8 @@ import wave
 from contextlib import ExitStack
 from pathlib import Path
 
+from lecnote.document_extraction import MAX_INPUT_BYTES, MAX_TEXT_CHARS, bounded_text, extract_document
+
 _IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
 _OCR_SETUP = (
     "Install Tesseract and its language data, and ensure 'tesseract' is on PATH. "
@@ -40,24 +42,19 @@ def _require_file(path: Path) -> Path:
 
 
 def extract_context(path: Path) -> str:
-    """Extract UTF-8 text, PDF text, or image text entirely on this computer."""
-    path = _require_file(path)
-    suffix = path.suffix.lower()
-    if suffix in {".txt", ".md"}:
-        try:
-            text = path.read_text(encoding="utf-8-sig")
-        except UnicodeError as exc:
-            raise RuntimeError("Text attachments must be UTF-8. Save the file as UTF-8 and retry.") from exc
-        except OSError as exc:
-            raise RuntimeError(f"Cannot read {path.name}. Check local file permissions.") from exc
-        if not text.strip():
-            raise RuntimeError("Text attachment is empty. Upload a file containing text.")
-        return text
-    if suffix == ".pdf":
-        return _extract_pdf(path)
-    if suffix in _IMAGE_SUFFIXES:
-        return _extract_image(path)
-    raise RuntimeError("Unsupported attachment type. Use .txt, .md, .pdf, .png, .jpg, .jpeg, or .webp.")
+    """Extract at most 100,000 characters locally without changing the source."""
+    try:
+        path = _require_file(path)
+        if path.stat().st_size > MAX_INPUT_BYTES:
+            raise RuntimeError("Attachment exceeds the 30 MiB extraction input limit.")
+        suffix = path.suffix.lower()
+        if suffix == ".pdf":
+            return _extract_pdf(path)[:MAX_TEXT_CHARS]
+        if suffix in _IMAGE_SUFFIXES:
+            return _extract_image(path)[:MAX_TEXT_CHARS]
+        return extract_document(path)
+    except (RuntimeError, OSError) as exc:
+        raise RuntimeError(f"{exc} The original attachment remains stored as download-only.") from exc
 
 
 def _extract_pdf(path: Path) -> str:
@@ -70,7 +67,7 @@ def _extract_pdf(path: Path) -> str:
             reader = PdfReader(source)
             if reader.is_encrypted:
                 raise RuntimeError("PDF is encrypted. Export an unlocked copy without a password and retry.")
-            text = "\n\n".join(page.extract_text() or "" for page in reader.pages)
+            text = bounded_text((page.extract_text() or "" for page in reader.pages), separator="\n\n")
     except RuntimeError:
         raise
     except Exception as exc:

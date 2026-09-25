@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
   ExternalLink,
+  File,
   FileText,
   Pencil,
   Plus,
@@ -20,6 +21,9 @@ export const courseResourcesPath = (courseId: string) =>
 
 export const readableResource = (resource: Resource, courseId: string | null) =>
   resource.course_id === courseId && Boolean(resource.text?.trim());
+
+const typedNote = (resource: Resource) =>
+  resource.kind === "note" && !resource.url;
 
 export function ClassResources({
   course,
@@ -186,7 +190,7 @@ export function ClassResources({
             <pre className="text-preview">
               {selected.text || "No readable text available."}
             </pre>
-            {selected.kind !== "note" && (
+            {!typedNote(selected) && (
               <a
                 className="button"
                 href={filePath(selected)}
@@ -197,7 +201,7 @@ export function ClassResources({
                 Open original
               </a>
             )}
-            {selected.kind === "note" && (
+            {typedNote(selected) && (
               <Button icon={Pencil} onClick={() => editNote(selected)}>
                 Edit note
               </Button>
@@ -241,10 +245,10 @@ export function ClassResources({
                 multiple
                 disabled={busy}
                 aria-label="Upload class resources"
-                accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.md"
                 onChange={(event) => void upload(event.target.files)}
               />
             </div>
+            <p className="muted small">Any file type, up to 30 MiB each.</p>
             <ErrorNotice error={resources.error} retry={resources.refresh} />
             {resources.loading ? (
               <Loading label="Loading class resources" />
@@ -254,7 +258,12 @@ export function ClassResources({
                   .filter((resource) => resource.course_id === course.id)
                   .map((resource) => (
                     <li key={resource.id} className="class-resource-row">
-                      <FileText size={20} aria-hidden="true" />
+                      {typedNote(resource) ||
+                      ["txt", "md", "pdf"].includes(resource.kind) ? (
+                        <FileText size={20} aria-hidden="true" />
+                      ) : (
+                        <File size={20} aria-hidden="true" />
+                      )}
                       <div className="class-resource-info">
                         <button
                           className="plain"
@@ -264,8 +273,10 @@ export function ClassResources({
                           {resource.name}
                         </button>
                         <small>
-                          {resource.kind === "note" ? "Note" : resource.kind} ·{" "}
-                          {date(resource.updated_at)} · Revision{" "}
+                          {typedNote(resource)
+                            ? "Note"
+                            : resource.kind || "File"}{" "}
+                          · {date(resource.updated_at)} · Revision{" "}
                           {resource.revision}
                         </small>
                         {resource.error ? (
@@ -281,7 +292,7 @@ export function ClassResources({
                         )}
                       </div>
                       <div className="actions">
-                        {resource.kind === "note" ? (
+                        {typedNote(resource) ? (
                           <IconButton
                             icon={Pencil}
                             label={`Edit ${resource.name}`}
@@ -320,7 +331,9 @@ export function ClassResources({
                 (resource) => resource.course_id === course.id,
               ) && (
                 <p className="muted">
-                  {query ? "No matching resources." : "No class resources yet."}
+                  {query
+                    ? "No matching resources."
+                    : "No class resources yet. Add a file or note."}
                 </p>
               )}
           </>

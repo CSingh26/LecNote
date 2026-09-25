@@ -3,10 +3,10 @@ from uuid import uuid4
 
 from anyio import CancelScope
 from fastapi import File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
 from pydantic import Field
 from starlette.concurrency import run_in_threadpool
 
+from .file_responses import original_file_response
 from .requests import Input
 
 
@@ -119,8 +119,6 @@ def install_resources(app, repo, settings, manager, check_course, editable, publ
         check_course(course_id)
         name = Path((file.filename or "material").replace("\\", "/")).name
         suffix = Path(name).suffix.lower()
-        if suffix not in {".txt", ".md", ".pdf", ".png", ".jpg", ".jpeg", ".webp"}:
-            raise HTTPException(415, "Choose a PDF, text file, or image")
         identifier = str(uuid4())
         folder = settings.data_dir / "resources" / identifier
         folder.mkdir(parents=True)
@@ -130,7 +128,7 @@ def install_resources(app, repo, settings, manager, check_course, editable, publ
             error, text = None, ""
             try:
                 text = await run_in_threadpool(extract_context, path)
-                if len(text) > 100000:
+                if len(text) >= 100000:
                     text = text[:100000]
                     error = "Only the first 100,000 characters were extracted"
             except (RuntimeError, ValueError, OSError):
@@ -168,25 +166,14 @@ def install_resources(app, repo, settings, manager, check_course, editable, publ
         item = get_resource(course_id, resource_id)
         if not item.get("path") or not Path(item["path"]).is_file():
             raise HTTPException(404, "This material has no original file")
-        media_type = {
-            "txt": "text/plain",
-            "md": "text/plain",
-            "pdf": "application/pdf",
-            "png": "image/png",
-            "jpg": "image/jpeg",
-            "jpeg": "image/jpeg",
-            "webp": "image/webp",
-        }.get(item["kind"], "application/octet-stream")
-        return FileResponse(
-            item["path"], filename=item["name"], media_type=media_type, content_disposition_type="inline"
-        )
+        return original_file_response(item)
 
     @app.patch("/api/courses/{course_id}/resources/{resource_id}")
     def patch_resource(course_id: str, resource_id: str, body: ResourcePatch):
         with manager.lock:
             item = get_resource(course_id, resource_id)
             values = body.model_dump(exclude_unset=True, exclude_none=True)
-            if "text" in values and item["kind"] != "note":
+            if "text" in values and (item["kind"] != "note" or item.get("path")):
                 raise HTTPException(422, "Only typed class notes can be edited")
             related = affected(resource_id)
             values["revision"] = item["revision"] + 1

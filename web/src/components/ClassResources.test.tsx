@@ -187,3 +187,50 @@ it("retries failed loads and displays extraction errors", async () => {
   await user.click(screen.getByRole("button", { name: "Retry" }));
   expect(await screen.findByText("PDF extraction failed")).toBeVisible();
 });
+
+it("uploads code, office, and extensionless originals without filtering", async () => {
+  const user = userEvent.setup();
+  render(<ClassResources course={course} onClose={vi.fn()} />);
+  const files = [
+    new File(["print('hello')"], "example.py"),
+    new File(["office"], "report.docx"),
+    new File(["original"], "README"),
+  ];
+  await user.upload(screen.getByLabelText("Upload class resources"), files);
+  await waitFor(() => expect(calls).toHaveLength(3));
+  expect(calls.map(({ init }) => (init.body as FormData).get("file"))).toEqual(
+    files,
+  );
+});
+
+it("shows an uploaded .note as an escaped read-only original", async () => {
+  const source = '<script>alert(1)</script><img src=x onerror="alert(1)">';
+  resources = [
+    {
+      ...note,
+      name: "fake.note",
+      text: source,
+      url: "/api/courses/math/resources/note/file",
+    },
+  ];
+  const user = userEvent.setup();
+  const view = render(<ClassResources course={course} onClose={vi.fn()} />);
+  expect(
+    await screen.findByRole("link", { name: "Open fake.note" }),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Edit fake.note" }),
+  ).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "fake.note" }));
+  expect(screen.getByText(source)).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Edit note" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Open original" })).toHaveAttribute(
+    "href",
+    "/api/courses/math/resources/note/file",
+  );
+  expect(
+    view.baseElement.querySelector("script, img, iframe, textarea"),
+  ).toBeNull();
+});
