@@ -125,7 +125,7 @@ a container on your laptop.
 | Materials | Local text/PDF extraction and image OCR; original files remain local |
 | Class resources | Searchable reusable materials and typed notes; explicit per-lecture selection |
 | Relevance | Full-lecture topic mapping, timestamped categories, manual overrides, separate logistics |
-| Recording merges | 2-20 same-class parts, ordered compact M4A, source provenance, originals preserved |
+| Recording merges | 2-20 same-class parts, ordered compact M4A, source provenance, originals preserved; transcript tail overruns up to two seconds are bounded to the audio in the merged copy (larger mismatches or segments wholly beyond the audio require corrected transcription) |
 | Compression | Eligible 6 hours after finalization, local idle worker, validated smaller replacement, opt-out |
 | Recovery | Completed transcription and note chunks cached; failed/cancelled/interrupted jobs can resume |
 | Exports | Markdown, standalone HTML, PDF, and JSON; includes personal annotations |

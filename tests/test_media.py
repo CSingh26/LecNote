@@ -113,6 +113,55 @@ def test_merge_order_offsets_provenance_and_sources_unchanged(library):
         assert Path(x["media_path"]).read_bytes() == originals[x["id"]]
 
 
+@real_audio
+@pytest.mark.parametrize("partial", [False, True])
+@pytest.mark.parametrize("overrun", [1.248, 2.0])
+def test_merge_bounds_small_tail_overrun_without_changing_sources(library, partial, overrun):
+    repo, _, service = library
+    lecture(library, "first")
+    transcript = {"language": "en", "duration": 10 + overrun, "segments": [
+        {"id": 7, "start": 9, "end": 10 + overrun, "text": "Keep the final sentence."},
+    ]}
+    lecture(library, "middle", 10, **(
+        {"transcript": None, "partial_transcript": transcript} if partial else {"transcript": transcript}
+    ))
+    lecture(library, "last")
+    originals = repo.list("lectures")
+    audio = {item["media_path"]: Path(item["media_path"]).read_bytes() for item in originals}
+
+    merged = service.merge(["first", "middle", "last"])
+
+    result = Transcript.model_validate(merged["partial_transcript"] if partial else merged["transcript"])
+    assert result.duration == pytest.approx(12)
+    assert [segment.text for segment in result.segments] == ["first", "Keep the final sentence.", "last"]
+    assert result.segments[1].start == pytest.approx(10)
+    assert result.segments[1].end == pytest.approx(11)
+    assert result.segments[2].start == pytest.approx(11)
+    assert merged["merge_sources"][2]["offset"] == pytest.approx(11)
+    assert merged["segment_sources"][1]["source_end"] == 10 + overrun
+    if partial:
+        assert merged["transcript"] is None
+    for item in originals:
+        assert repo.get("lectures", item["id"]) == item
+        assert Path(item["media_path"]).read_bytes() == audio[item["media_path"]]
+
+
+@real_audio
+@pytest.mark.parametrize("start,end", [(9, 12.01), (10, 10.2), (10.1, 10.2)])
+def test_merge_rejects_large_or_wholly_outside_transcript_without_mutation(library, start, end):
+    repo, settings, service = library
+    lecture(library, "first", 10, transcript={"language": "en", "duration": end, "segments": [
+        {"id": 0, "start": start, "end": end, "text": "Mismatched timing"},
+    ]})
+    lecture(library, "last")
+    before = repo.list("lectures")
+    folders = set((settings.data_dir / "lectures").iterdir())
+    with pytest.raises(MediaError, match="transcript extends beyond its audio"):
+        service.merge(["first", "last"])
+    assert repo.list("lectures") == before
+    assert set((settings.data_dir / "lectures").iterdir()) == folders
+
+
 @pytest.mark.parametrize("mode", ["single", "duplicate", "course", "recording", "job", "explicit_busy"])
 def test_merge_rejects_invalid_or_busy_inputs_without_mutation(library, mode):
     repo, settings, service = library

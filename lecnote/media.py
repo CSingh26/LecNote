@@ -46,6 +46,7 @@ BUSY_STATUSES = {
 ACTIVE_JOBS = {"queued", "running"}
 COMPRESSION_DELAY = timedelta(hours=6)
 MAX_COMPRESSION_ATTEMPTS = 5
+MAX_TRANSCRIPT_TAIL_OVERRUN = 2.0
 
 
 class MediaError(ValueError):
@@ -389,8 +390,17 @@ class MediaService:
         segments, segment_sources, merge_sources = [], [], []
         offset = 0.0
         for item, transcript, length in zip(lectures, transcripts, durations):
-            if transcript and transcript["duration"] > length + _tolerance(length):
-                raise MediaError("A source transcript extends beyond its audio")
+            # Whisper timestamps are estimates, unlike measured audio duration.
+            # Bound small tail overruns in the copy below, retaining the original
+            # timestamps in provenance. Never collapse a wholly out-of-audio segment.
+            if transcript and (
+                transcript["duration"] > length + MAX_TRANSCRIPT_TAIL_OVERRUN
+                or any(s["end"] > length and s["start"] >= length for s in transcript["segments"])
+            ):
+                raise MediaError(
+                    "A source transcript extends beyond its audio; correct its timestamps "
+                    "or transcribe that recording again before merging"
+                )
             merge_sources.append(
                 {
                     "lecture_id": item["id"],
