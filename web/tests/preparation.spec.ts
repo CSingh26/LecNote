@@ -159,6 +159,11 @@ for (const width of [1440, 390]) {
         () => document.documentElement.scrollWidth > window.innerWidth,
       ),
     ).toBe(false);
+    await page.getByRole("tab", { name: "Materials", exact: true }).click();
+    const upload = page.getByLabel("Upload source materials");
+    expect(await upload.getAttribute("accept")).toBeNull();
+    expect(await upload.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThanOrEqual(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     await page
       .getByRole("button", { name: "Generate notes", exact: true })
       .click();

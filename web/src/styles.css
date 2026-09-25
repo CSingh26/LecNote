@@ -1783,7 +1783,8 @@ progress::-moz-progress-bar {
 .skip-link:focus {
   top: 12px;
 }
-.sr-only {
+.sr-only,
+input[type="file"].sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
