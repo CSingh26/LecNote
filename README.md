@@ -45,6 +45,13 @@ available in this environment. Headings use a system condensed stack
 (Avenir Next Condensed, Roboto Condensed, Arial Narrow) rather than a
 downloaded font, keeping the app fully local.
 
+### Follow-up on main (unreleased)
+
+Notice, quotation, formula, and emphasis borders now use 1px rules. Dialogs use
+the shared 180ms reveal timing and easing, without overshoot. Reduced-motion
+behavior remains unchanged. This source-only cleanup does not update the
+published v1.1.0 image or restart an existing installation.
+
 ## v1.0.2 maintenance update
 
 Version `1.0.2` is the previous compatible patch update, retained at tag `v1.0.2`.

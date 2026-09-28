@@ -612,7 +612,7 @@ hr {
   align-items: flex-start;
   gap: 10px;
   border: 1px solid #b8dbd7;
-  border-left: 4px solid var(--primary);
+  border-left: 1px solid var(--primary);
   background: var(--primary-soft);
   padding: 13px 16px;
   border-radius: 6px;
@@ -684,7 +684,7 @@ hr {
   max-height: calc(100dvh - 48px);
   overflow: auto;
   outline: 0;
-  animation: pop-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  animation: pop-in var(--dur-reveal) var(--ease) both;
 }
 .modal.wide {
   width: 680px;
@@ -1165,7 +1165,7 @@ progress::-moz-progress-bar {
 .markdown blockquote {
   margin-left: 0;
   padding: 4px 0 4px 18px;
-  border-left: 3px solid var(--violet);
+  border-left: 1px solid var(--violet);
   color: var(--muted);
 }
 .markdown img {
@@ -1247,13 +1247,13 @@ progress::-moz-progress-bar {
 .formula {
   padding: 16px 20px;
   background: var(--sky-soft);
-  border-left: 4px solid var(--sky);
+  border-left: 1px solid var(--sky);
   border-radius: 0 6px 6px 0;
   margin: 20px 0;
 }
 .emphasis {
   padding: 3px 20px 14px;
-  border-left: 4px solid #f59e0b;
+  border-left: 1px solid #f59e0b;
   background: #fffaeb;
   border-radius: 0 6px 6px 0;
   margin: 24px 0;
