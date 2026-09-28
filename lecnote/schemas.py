@@ -1,5 +1,6 @@
 """Validated storage and Structured Outputs contracts for lecture processing."""
 
+import math
 import re
 from typing import Annotated, Any, Literal
 
@@ -16,6 +17,11 @@ ShortText = Annotated[str, Field(max_length=500)]
 Text = Annotated[str, Field(max_length=4000)]
 Seconds = Annotated[float, Field(ge=0, le=172_800, allow_inf_nan=False)]
 Number = Annotated[float, Field(ge=-1e15, le=1e15, allow_inf_nan=False, strict=True)]
+
+
+def timestamps_match(left: float, right: float) -> bool:
+    # Merged offsets accumulate float roundoff, never meaningful audio timing.
+    return math.isclose(left, right, rel_tol=0, abs_tol=1e-9)
 
 
 class PipelineCancelled(RuntimeError):
@@ -152,8 +158,19 @@ class ChunkNote(Schema):
     def validate_timestamps(self):
         if self.end < self.start:
             raise ValueError("Chunk end must not precede start")
-        if any(not self.start <= point.timestamp <= self.end for point in self.key_points):
-            raise ValueError("Citation timestamp is outside the source chunk")
+        points = []
+        for point in self.key_points:
+            if self.start <= point.timestamp <= self.end:
+                points.append(point)
+                continue
+            boundary = next(
+                (value for value in (self.start, self.end) if timestamps_match(point.timestamp, value)),
+                None,
+            )
+            if boundary is None:
+                raise ValueError("Citation timestamp is outside the source chunk")
+            points.append(point.model_copy(update={"timestamp": boundary}))
+        self.key_points = points
         return self
 
 

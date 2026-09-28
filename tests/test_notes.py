@@ -119,6 +119,93 @@ def test_rejects_citations_outside_actual_source_segments(monkeypatch, timestamp
     assert len(attempts) == 4
 
 
+@pytest.mark.parametrize("timestamp,boundary", [(0.3, "start"), (0.9, "end")])
+def test_merged_float_roundoff_citations_are_snapped_without_retries(monkeypatch, timestamp, boundary):
+    from lecnote.notes import NoteGenerator
+
+    chunk = source_chunk()
+    chunk["segments"] = [{"start": 0.1 + 0.2, "end": 0.7 + 0.2, "text": "Velocity is a rate."}]
+    calls = []
+
+    def parse(**kwargs):
+        calls.append(1)
+        data = chunk_data()
+        data["key_points"][0]["timestamp"] = timestamp
+        return response(data, kwargs["text_format"])
+
+    install_provider(monkeypatch, parse)
+    monkeypatch.setattr("lecnote.notes.time.sleep", lambda _: None)
+    note, _ = NoteGenerator(settings()).generate_chunk(chunk, "")
+    assert note.key_points[0].timestamp == chunk["segments"][0][boundary]
+    assert calls == [1]
+
+
+def test_merged_float_roundoff_chunk_boundaries_are_canonical():
+    from lecnote.notes import validate_grounding
+    from lecnote.schemas import ChunkNote
+
+    chunk = source_chunk()
+    chunk.update(start=0.1 + 0.2, end=0.7 + 0.2)
+    chunk["segments"] = [{"start": chunk["start"], "end": chunk["end"], "text": "Velocity is a rate."}]
+    data = chunk_data(start=0.3, end=0.9)
+    data["key_points"][0]["timestamp"] = 0.5
+    original = ChunkNote.model_validate(data)
+    note = validate_grounding(original, chunk)
+    assert (note.start, note.end) == (chunk["start"], chunk["end"])
+    assert note.key_points[0].timestamp == 0.5
+    assert (original.start, original.end) == (0.3, 0.9)
+
+
+@pytest.mark.parametrize("timestamp,boundary", [(0.3, "start"), (0.9, "end")])
+def test_chunk_schema_snaps_roundoff_at_its_own_bounds(timestamp, boundary):
+    from lecnote.schemas import ChunkNote
+
+    data = chunk_data(start=0.1 + 0.2, end=0.7 + 0.2)
+    data["key_points"][0]["timestamp"] = timestamp
+    note = ChunkNote.model_validate(data)
+    assert note.key_points[0].timestamp == data[boundary]
+
+
+def test_roundoff_does_not_ground_a_citation_in_blank_speech():
+    from lecnote.notes import validate_grounding
+    from lecnote.schemas import ChunkNote
+
+    chunk = source_chunk()
+    chunk["segments"] = [{"start": 0.1 + 0.2, "end": 0.7 + 0.2, "text": " "}]
+    data = chunk_data()
+    data["key_points"][0]["timestamp"] = 0.3
+    with pytest.raises(ValueError, match="Citation timestamp"):
+        validate_grounding(ChunkNote.model_validate(data), chunk)
+
+
+@pytest.mark.parametrize("timestamp", [0.3 - 1e-7, 0.9 + 1e-7])
+def test_roundoff_handling_does_not_admit_real_citation_gaps(timestamp):
+    from lecnote.notes import validate_grounding
+    from lecnote.schemas import ChunkNote
+
+    chunk = source_chunk()
+    chunk["segments"] = [{"start": 0.3, "end": 0.9, "text": "Velocity is a rate."}]
+    data = chunk_data()
+    data["key_points"][0]["timestamp"] = timestamp
+    with pytest.raises(ValueError, match="Citation timestamp"):
+        validate_grounding(ChunkNote.model_validate(data), chunk)
+
+
+@pytest.mark.parametrize("field", ["index", "start", "end"])
+def test_roundoff_handling_does_not_admit_different_chunks(field):
+    from lecnote.notes import validate_grounding
+    from lecnote.schemas import ChunkNote
+
+    chunk = source_chunk()
+    chunk.update(start=100000, end=100001)
+    chunk["segments"] = [{"start": 100000, "end": 100001, "text": "Velocity is a rate."}]
+    data = chunk_data(start=100000, end=100001)
+    data["key_points"][0]["timestamp"] = 100000.5
+    data[field] += 1 if field == "index" else 0.00001
+    with pytest.raises(ValueError, match="chunk boundaries"):
+        validate_grounding(ChunkNote.model_validate(data), chunk)
+
+
 def test_transient_errors_retry_with_backoff_at_most_three_times(monkeypatch):
     import httpx
     from openai import RateLimitError

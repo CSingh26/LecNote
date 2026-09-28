@@ -16,6 +16,7 @@ from .schemas import (
     LectureOverview,
     PipelineCancelled,
     Usage,
+    timestamps_match,
 )
 
 PROMPT_VERSION = "lecnote-relevance-grounded-v1.0.1"
@@ -95,16 +96,31 @@ class NotesError(RuntimeError):
 
 
 def validate_grounding(note: ChunkNote, chunk: dict) -> ChunkNote:
-    if (note.index, note.start, note.end) != (chunk["index"], chunk["start"], chunk["end"]):
+    if (
+        note.index != chunk["index"]
+        or not timestamps_match(note.start, chunk["start"])
+        or not timestamps_match(note.end, chunk["end"])
+    ):
         raise ValueError("Returned chunk boundaries do not match the source chunk")
+    segments = [segment for segment in chunk["segments"] if segment["text"].strip()]
+    points = []
     for point in note.key_points:
-        if not any(
-            s["start"] <= point.timestamp <= s["end"] and s["text"].strip() for s in chunk["segments"]
-        ):
+        if any(segment["start"] <= point.timestamp <= segment["end"] for segment in segments):
+            points.append(point)
+            continue
+        boundary = next(
+            (
+                value for segment in segments for value in (segment["start"], segment["end"])
+                if timestamps_match(point.timestamp, value)
+            ),
+            None,
+        )
+        if boundary is None:
             raise ValueError("Citation timestamp is outside the actual source segments")
+        points.append(point.model_copy(update={"timestamp": boundary}))
     if note.visual and note.visual.image is not None:
         raise ValueError("Model output must not contain an image path or URL")
-    return note
+    return note.model_copy(update={"start": chunk["start"], "end": chunk["end"], "key_points": points})
 
 
 class NoteGenerator:

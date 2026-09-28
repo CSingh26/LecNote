@@ -52,6 +52,11 @@ the shared 180ms reveal timing and easing, without overshoot. Reduced-motion
 behavior remains unchanged. The published v1.1.0 image does not include this
 follow-up; build from `main` to deploy it. No library migration is needed.
 
+Note generation also tolerates nanosecond-scale floating-point roundoff in
+merged recording timestamps, snapping accepted citations to source boundaries.
+Real silent-gap citations and mismatched chunks are still rejected. Existing
+transcripts are unchanged, and interrupted generation can reuse saved sections.
+
 ## v1.0.2 maintenance update
 
 Version `1.0.2` is the previous compatible patch update, retained at tag `v1.0.2`.

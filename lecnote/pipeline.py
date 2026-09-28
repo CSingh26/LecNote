@@ -332,8 +332,8 @@ def run_pipeline(lecture: dict, settings, progress, is_cancelled, checkpoint=Non
         cached = _read_stage(cache_dir / f"chunk-{chunk['index']:04d}.json", cache_key, ChunkNote)
         if cached:
             try:
-                note_service.validate_grounding(cached[0], chunk)
-                completed[chunk["index"]], usage_by_chunk[chunk["index"]] = cached
+                completed[chunk["index"]] = note_service.validate_grounding(cached[0], chunk)
+                usage_by_chunk[chunk["index"]] = cached[1]
                 continue
             except (ValueError, ValidationError):
                 pass
