@@ -12,6 +12,15 @@ log = logging.getLogger(__name__)
 ACTIVE = {"queued", "running"}
 
 
+def _relevance_segments(transcript):
+    if transcript is None:
+        return None
+    return [
+        (segment["id"], segment["start"], segment["end"], segment["text"])
+        for segment in transcript["segments"]
+    ]
+
+
 class JobManager:
     def __init__(self, repo, settings, pipeline=None, start_worker=True):
         self.library_lock = LibraryLock(settings.data_dir / "worker.lock")
@@ -253,8 +262,13 @@ class JobManager:
                         changes.update(transcript_provenance(current, values["transcript"]))
                         changes["duration"] = values["transcript"]["duration"]
                         changes["final_transcription_pending"] = False
+                        if _relevance_segments(current.get("transcript")) != _relevance_segments(
+                            values["transcript"]
+                        ):
+                            changes.update(relevance=None, relevance_overrides={})
+                            lecture.update(relevance=None, relevance_overrides={})
                         if current.get("transcript") != values["transcript"]:
-                            changes.update(relevance=None, notes_stale=bool(current.get("notes")))
+                            changes["notes_stale"] = bool(current.get("notes"))
                     self.repo.update("lectures", lecture_id, changes)
                     if "transcript" in values:
                         retire_chunks()
@@ -267,16 +281,17 @@ class JobManager:
                 if cancelled():
                     raise PipelineCancelled("Cancelled")
                 saved_notes = result["notes"] or lecture.get("notes")
+                current = self.repo.get("lectures", lecture_id)
                 self.repo.update(
                     "lectures",
                     lecture_id,
                     {
                         "transcript": result["transcript"],
-                        **transcript_provenance(self.repo.get("lectures", lecture_id), result["transcript"]),
+                        **transcript_provenance(current, result["transcript"]),
                         "final_transcription_pending": False,
                         "notes": saved_notes,
                         "resource_provenance": lecture.get("resource_provenance", []),
-                        "relevance": result.get("relevance", lecture.get("relevance")),
+                        "relevance": result.get("relevance", current.get("relevance")),
                         "notes_stale": False
                         if result["notes"]
                         else bool(saved_notes)

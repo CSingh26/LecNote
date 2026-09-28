@@ -17,6 +17,8 @@ context. Queued chunk transcriptions are skipped; completed full passes are cach
 Interim text survives cancellation or failure, and manually edited transcripts
 remain authoritative. Older finalized live recordings refresh once on their next
 processing run if they have not been manually edited.
+When a full pass changes transcript segments, stale relevance classifications
+and overrides are cleared before analysis so they cannot be applied to different speech.
 
 ## v1.0.1 release
 

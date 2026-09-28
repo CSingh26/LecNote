@@ -303,6 +303,139 @@ def test_legacy_finished_live_recording_gets_one_full_transcription(tmp_path, mo
         manager.close()
 
 
+def test_changed_final_transcript_clears_stale_relevance_and_overrides(tmp_path, monkeypatch):
+    from lecnote import pipeline
+
+    repo = Repository(tmp_path / "library.sqlite3")
+    settings = Settings(data_dir=tmp_path)
+    _live_recording(repo, settings)
+    old_transcript = {
+        "language": "en",
+        "duration": 2,
+        "segments": [
+            {"id": 0, "start": 0, "end": 1, "text": "First", "speaker": None},
+            {"id": 1, "start": 1, "end": 2, "text": "Second", "speaker": None},
+        ],
+    }
+    old_relevance = {"fingerprint": "old-analysis"}
+    repo.update(
+        "lectures",
+        "lecture",
+        {
+            "transcript": old_transcript,
+            "relevance": old_relevance,
+            "relevance_overrides": {"1": "off_topic"},
+        },
+    )
+    final = {
+        "language": "en",
+        "duration": 2,
+        "segments": [{"id": 0, "start": 0, "end": 2, "text": "First second together", "speaker": None}],
+    }
+    monkeypatch.setattr(pipeline, "transcribe", lambda *_args, **_kwargs: final)
+    manager = JobManager(repo, settings, start_worker=False)
+    try:
+        job = manager.enqueue("lecture", live_finish=True, transcribe_only=True)
+        manager._run(job["id"])
+        saved = repo.get("lectures", "lecture")
+        assert repo.get("jobs", job["id"])["status"] == "completed"
+        assert saved["transcript"] == final
+        assert saved["relevance"] is None
+        assert saved["relevance_overrides"] == {}
+    finally:
+        manager.close()
+
+
+@pytest.mark.parametrize("vanished_id", [False, True])
+def test_changed_final_transcript_clears_overrides_before_analysis(tmp_path, monkeypatch, vanished_id):
+    from lecnote import pipeline
+    from lecnote.relevance import normalize_overrides
+
+    repo = Repository(tmp_path / "library.sqlite3")
+    settings = Settings(data_dir=tmp_path)
+    _live_recording(repo, settings)
+    old_transcript = repo.get("lectures", "lecture")["transcript"]
+    if vanished_id:
+        old_transcript["segments"].append(
+            {"id": 1, "start": 1, "end": 2, "text": "Old ending", "speaker": None}
+        )
+    repo.update(
+        "lectures",
+        "lecture",
+        {
+            "context": "Physics lecture",
+            "transcript": old_transcript,
+            "relevance": {"fingerprint": "old-analysis"},
+            "relevance_overrides": {"1" if vanished_id else "0": "off_topic"},
+        },
+    )
+    final = {
+        "language": "en",
+        "duration": 2,
+        "segments": [{"id": 0, "start": 0, "end": 2, "text": "Actual course material", "speaker": None}],
+    }
+    monkeypatch.setattr(pipeline, "transcribe", lambda *_args, **_kwargs: final)
+    observed = []
+
+    def stop_at_analysis(_transcript, lecture, *_args):
+        try:
+            overrides = normalize_overrides(lecture, _transcript)
+        except ValueError as exc:
+            observed.append(str(exc))
+        else:
+            observed.append((lecture.get("relevance"), lecture.get("relevance_overrides"), overrides))
+        raise RuntimeError("Reached analysis without provider calls")
+
+    monkeypatch.setattr(pipeline, "analyze_relevance", stop_at_analysis)
+    manager = JobManager(repo, settings, start_worker=False)
+    try:
+        job = manager.enqueue("lecture", live_finish=True)
+        manager._run(job["id"])
+        assert observed == [(None, {}, {})]
+        assert repo.get("lectures", "lecture")["relevance_overrides"] == {}
+    finally:
+        manager.close()
+
+
+def test_speaker_only_transcript_change_preserves_manual_relevance(tmp_path, monkeypatch):
+    from lecnote.enrichment import assemble_wav
+
+    repo = Repository(tmp_path / "library.sqlite3")
+    settings = Settings(data_dir=tmp_path)
+    transcript = _live_recording(repo, settings)
+    media = settings.lecture_dir("lecture") / "recording.wav"
+    assemble_wav([chunk["path"] for chunk in repo.list_chunks("lecture")], media)
+    old_relevance = {"fingerprint": "user-reviewed-analysis"}
+    repo.update(
+        "lectures",
+        "lecture",
+        {
+            "status": "draft",
+            "media_path": str(media),
+            "transcript_edited": True,
+            "relevance": old_relevance,
+            "relevance_overrides": {"0": "course_material"},
+        },
+    )
+
+    def diarize(_media, segments, _token):
+        return [{**segment, "speaker": "Speaker 1"} for segment in segments]
+
+    monkeypatch.setattr("lecnote.enrichment.diarize_segments", diarize)
+    manager = JobManager(repo, settings, start_worker=False)
+    try:
+        job = manager.enqueue("lecture", diarize=True, transcribe_only=True)
+        manager._run(job["id"])
+        saved = repo.get("lectures", "lecture")
+        assert repo.get("jobs", job["id"])["status"] == "completed"
+        assert saved["transcript"]["segments"][0]["speaker"] == "Speaker 1"
+        assert saved["transcript"]["segments"][0]["text"] == transcript["segments"][0]["text"]
+        assert saved["relevance"] == old_relevance
+        assert saved["relevance_overrides"] == {"0": "course_material"}
+    finally:
+        manager.close()
+
+
 @pytest.mark.parametrize("mode", ["transcribe", "fail", "regenerate"])
 def test_existing_notes_survive_until_successful_replacement(tmp_path, mode):
     repo = Repository(tmp_path / "library.sqlite3")
