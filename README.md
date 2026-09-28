@@ -2,12 +2,20 @@
 
 ## Redesign in development
 
-The `codex/impeccable-redesign` branch contains the approved **Course Editions**
-design and its implementation plan. The approved **Reading workspace** layout
-keeps a course rail and compact lecture index beside the selected lecture's
-player, notes, and materials, with a yellow-and-ink visual identity.
-Implementation and verification are pending; these mockups are not
-part of the released app. Existing servers and libraries remain unchanged.
+The `redesign/reading-workspace` branch (from `codex/impeccable-redesign`)
+implements the approved **Course Editions** design and its implementation plan.
+The approved **Reading workspace** layout keeps a course rail and compact
+lecture index beside the selected lecture's player, notes, and materials, with
+a yellow-and-ink visual identity. Existing servers and libraries remain
+unchanged; the redesign is not part of a released version.
+
+Implementation status:
+
+- Done: reusable course materials panel (per-course list, search, safe source
+  preview, Open original, and Manage materials through the existing resource
+  dialog) and a Materials page with an explicit course selector.
+- Pending: routed shell and Reading workspace, remaining screens, motion and
+  responsive verification.
 
 ## v1.0.2 maintenance update
 
