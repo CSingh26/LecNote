@@ -49,8 +49,8 @@ downloaded font, keeping the app fully local.
 
 Notice, quotation, formula, and emphasis borders now use 1px rules. Dialogs use
 the shared 180ms reveal timing and easing, without overshoot. Reduced-motion
-behavior remains unchanged. This source-only cleanup does not update the
-published v1.1.0 image or restart an existing installation.
+behavior remains unchanged. The published v1.1.0 image does not include this
+follow-up; build from `main` to deploy it. No library migration is needed.
 
 ## v1.0.2 maintenance update
 
