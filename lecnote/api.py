@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from anyio import CancelScope
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
@@ -80,6 +81,15 @@ def create_app(settings: Settings | None = None, start_worker=True):
     app = FastAPI(title="LecNote", version="1.0.1", lifespan=lifespan)
     app.state.repo, app.state.settings, app.state.jobs = repo, settings, manager
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"])
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request: Request, exc: RequestValidationError):
+        # Echoed inputs and constraint contexts can contain non-JSON values or secrets.
+        detail = [
+            {key: value for key, value in error.items() if key not in {"input", "ctx", "url"}}
+            for error in exc.errors()
+        ]
+        return JSONResponse({"detail": detail}, status_code=422)
 
     @app.middleware("http")
     async def local_origin(request: Request, call_next):

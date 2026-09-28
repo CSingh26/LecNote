@@ -84,6 +84,26 @@ def test_invalid_transcript_and_missing_course_are_rejected(client):
     )
 
 
+@pytest.mark.parametrize("value", ["NaN", "Infinity", "-Infinity"])
+@pytest.mark.parametrize("endpoint", ["settings", "transcript"])
+def test_nonfinite_request_validation_returns_json_422(client, value, endpoint):
+    if endpoint == "settings":
+        url = "/api/settings"
+        body = '{"chunk_minutes": ' + value + "}"
+    else:
+        lecture = imported(client).json()
+        url = f"/api/lectures/{lecture['id']}/transcript"
+        body = ('{"language":"en","duration":10,"segments":'
+                '[{"id":0,"start":' + value + ',"end":7.6,"text":"x"}]}')
+    response = client.put(url, content=body, headers={"Content-Type": "application/json"})
+    assert response.status_code == 422
+    errors = response.json()["detail"]
+    assert errors and errors[0]["loc"][0] == "body"
+    assert all("msg" in error and "input" not in error for error in errors)
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["cache-control"] == "no-store"
+
+
 def test_settings_secrets_never_returned_and_local_origin_required(client):
     result = client.put("/api/settings", json={"api_key": "sk-private-fixture", "model": "custom-model"})
     assert result.status_code == 200

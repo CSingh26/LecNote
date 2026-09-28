@@ -7,6 +7,8 @@ correctly explains that generated notes are preserved and marked potentially
 out of date. Personal notes are kept.
 CLI failures now report the API's actionable reason, including invalid fields,
 unsupported recordings, and empty uploads.
+Invalid API requests containing non-finite numbers return structured validation
+errors instead of server errors.
 
 ## v1.0.1 release
 
