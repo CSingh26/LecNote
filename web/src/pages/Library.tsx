@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import {
   ArrowUpRight,
   BookOpen,
@@ -140,7 +140,16 @@ export function Library({
               href={`#/lecture/${lecture.id}`}
             >
               <span className="lecture-name">
-                <span className="file-icon">
+                <span
+                  className="file-icon"
+                  style={
+                    lecture.course_color
+                      ? ({
+                          "--accent": lecture.course_color,
+                        } as CSSProperties)
+                      : undefined
+                  }
+                >
                   {lecture.source_name ? (
                     <FileAudio size={21} />
                   ) : (
@@ -161,7 +170,7 @@ export function Library({
               </span>
               <span className="course-cell">
                 <i
-                  style={{ backgroundColor: lecture.course_color || "#a0a59e" }}
+                  style={{ backgroundColor: lecture.course_color || "#b7b3cf" }}
                 />
                 {lecture.course_code || lecture.course_name || "Unassigned"}
               </span>

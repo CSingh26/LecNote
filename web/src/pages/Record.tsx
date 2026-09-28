@@ -38,15 +38,20 @@ function Waveform({ signal }: { signal: number[] }) {
       canvas.height = height * ratio;
       ctx.scale(ratio, ratio);
       ctx.clearRect(0, 0, width, height);
-      ctx.strokeStyle = "#d8dfd9";
+      ctx.strokeStyle = "#e4e0f5";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, height / 2);
       ctx.lineTo(width, height / 2);
       ctx.stroke();
       if (!signal.length) return;
-      ctx.strokeStyle = "#235b44";
-      ctx.lineWidth = 2;
+      const gradient = ctx.createLinearGradient(0, 0, width, 0);
+      gradient.addColorStop(0, "#6d4aff");
+      gradient.addColorStop(0.55, "#a855f7");
+      gradient.addColorStop(1, "#ec4899");
+      ctx.strokeStyle = gradient;
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = "round";
       ctx.beginPath();
       signal.forEach((value, index) => {
         const x = (index / (signal.length - 1)) * width;

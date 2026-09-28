@@ -2,8 +2,10 @@
   min-width: 0;
 }
 .relevance-topic-map {
-  padding: 0 0 18px;
-  border-bottom: 1px solid var(--line);
+  padding: 18px 20px;
+  margin-bottom: 18px;
+  background: var(--gradient-soft);
+  border-radius: var(--radius);
   overflow-wrap: anywhere;
 }
 .relevance-topic-map ul {
@@ -13,26 +15,35 @@
 .relevance-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 16px;
-  border-bottom: 1px solid var(--line);
+  gap: 6px;
   margin-bottom: 16px;
 }
 .relevance-filters button {
   color: var(--muted);
-  background: transparent;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  padding: 12px 0;
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 6px 14px;
   font-size: 13px;
-  min-height: 44px;
+  font-weight: 600;
+  min-height: 36px;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+.relevance-filters button:hover {
+  color: var(--primary-dark);
+  border-color: #c9bcff;
 }
 .relevance-filters button[aria-pressed="true"] {
-  border-bottom-color: var(--green);
-  color: var(--green);
+  background: var(--gradient);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: var(--shadow-glow);
 }
 .relevance-filters button:focus-visible {
-  outline: 2px solid var(--green);
+  outline: 2.5px solid var(--primary);
   outline-offset: 3px;
 }
 .relevance-segment {
@@ -63,9 +74,14 @@
 }
 .relevance-needs_review .relevance-content small {
   color: var(--amber);
+  font-weight: 600;
 }
 .relevance-off_topic .relevance-content small {
   color: var(--rose);
+  font-weight: 600;
+}
+.relevance-off_topic .relevance-content p {
+  opacity: 0.6;
 }
 .relevance-segment select {
   width: 100%;

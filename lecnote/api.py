@@ -143,7 +143,7 @@ def create_app(settings: Settings | None = None, start_worker=True):
         value.update(
             course_name=course.get("name", "Unfiled"),
             course_code=course.get("code", ""),
-            course_color=course.get("color", "#26715b"),
+            course_color=course.get("color", "#6d4aff"),
             job=manager.latest(lecture["id"]),
         )
         value["attachments"] = [

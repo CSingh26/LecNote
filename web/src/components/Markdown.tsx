@@ -140,7 +140,7 @@ export function NoteVisual({
           <line x1="50" y1="20" x2="50" y2="230" stroke="currentColor" />
           <polyline
             fill="none"
-            stroke="#235b44"
+            stroke="#6d4aff"
             strokeWidth="2.5"
             points={points}
           />

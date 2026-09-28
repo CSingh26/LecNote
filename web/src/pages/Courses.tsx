@@ -16,14 +16,14 @@ import {
 } from "../components/ui";
 
 const colors = [
-  "#235b44",
-  "#46767a",
-  "#57629b",
-  "#916482",
-  "#b48b37",
-  "#a45e57",
-  "#68765c",
-  "#687078",
+  "#6d4aff",
+  "#ec4899",
+  "#f97316",
+  "#eab308",
+  "#10b981",
+  "#06b6d4",
+  "#3b82f6",
+  "#a855f7",
 ];
 export function Courses({
   courses,

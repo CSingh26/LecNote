@@ -1,6 +1,9 @@
 .lecture-preparation {
-  border-block: 1px solid var(--line);
-  padding-block: 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 22px 24px;
   margin-block: 20px;
 }
 .lecture-preparation h2 {
@@ -42,8 +45,14 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-block: 14px;
+  padding: 14px 12px;
+  margin-inline: -12px;
   border-top: 1px solid var(--line);
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+.class-resource-row:hover {
+  background: var(--surface-2);
 }
 .class-resource-info {
   display: grid;
@@ -75,6 +84,21 @@
   align-items: flex-start;
   gap: 10px;
   min-width: 0;
+  padding: 10px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.preparation-option:hover {
+  border-color: #c9bcff;
+}
+.preparation-option:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
 }
 .preparation-option input {
   margin-top: 4px;

@@ -20,7 +20,7 @@ class TranscriptInput(Transcript):
 class CourseInput(Input):
     name: str = Field(min_length=1, max_length=160)
     code: str = Field(default="", max_length=40)
-    color: str = Field(default="#26715b", pattern=r"^#[0-9a-fA-F]{6}$")
+    color: str = Field(default="#6d4aff", pattern=r"^#[0-9a-fA-F]{6}$")
     context: str = Field(default="", max_length=100000)
     vocabulary: str = Field(default="", max_length=10000)
     optimize_recordings: bool | None = None
