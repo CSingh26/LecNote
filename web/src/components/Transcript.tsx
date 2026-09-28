@@ -105,9 +105,9 @@ export function TranscriptView({
       </div>
       {editing && (
         <div className="notice warning">
-          Saving transcript or speaker changes clears generated notes. Your
-          personal notes are kept. Generate notes again when corrections are
-          complete.
+          Saving transcript or speaker changes marks generated notes as
+          potentially out of date. Your saved notes and personal notes are kept.
+          Generate notes again when corrections are complete.
         </div>
       )}
       <ErrorNotice error={error} />

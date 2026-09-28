@@ -1,5 +1,11 @@
 # LecNote
 
+## v1.0.2 maintenance branch
+
+Fixes are being verified individually on `v1.0.2`. Transcript editing now
+correctly explains that generated notes are preserved and marked potentially
+out of date. Personal notes are kept.
+
 ## v1.0.1 release
 
 LecNote v1.0.1 adds a class-centered study workflow.
