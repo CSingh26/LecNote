@@ -29,11 +29,13 @@ export function Library({
   onNew,
   version,
   initialCourse = "",
+  apiKeyConfigured = false,
 }: {
   courses: Course[];
   onNew: (mode: "upload" | "transcript", courseId: string) => void;
   version: number;
   initialCourse?: string;
+  apiKeyConfigured?: boolean;
 }) {
   const [course, setCourse] = useState(initialCourse);
   const [query, setQuery] = useState("");
@@ -233,6 +235,7 @@ export function Library({
       {merging && (
         <MergeRecordings
           lectures={lectures.data ?? []}
+          apiKeyConfigured={apiKeyConfigured}
           onClose={() => setMerging(false)}
           onSaved={(lecture) => {
             setMerging(false);

@@ -7,6 +7,70 @@ import { recording } from "./Milestone5.fixtures";
 const second = { ...recording, id: "two", title: "Part two", duration: 120 };
 afterEach(() => vi.unstubAllGlobals());
 
+it("explicitly generates new notes from prepared merged sources and allows merge-only", async () => {
+  const fetch = vi.fn(
+    async (_url: string, _init?: RequestInit) =>
+      new Response(
+        JSON.stringify({ ...recording, id: "merged", status: "queued" }),
+      ),
+  );
+  vi.stubGlobal("fetch", fetch);
+  const user = userEvent.setup();
+  render(
+    <MergeRecordings
+      lectures={[
+        {
+          ...recording,
+          preparation_ready: true,
+          selected_resource_ids: ["slides"],
+        },
+        second,
+      ]}
+      apiKeyConfigured
+      onSaved={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  await user.type(
+    screen.getByLabelText("Merged lecture title"),
+    "Complete lecture",
+  );
+  await user.click(screen.getByRole("checkbox", { name: /Part one/ }));
+  await user.click(screen.getByRole("checkbox", { name: /Part two/ }));
+  const generate = screen.getByRole("checkbox", {
+    name: "Generate notes after merging",
+  });
+  expect(generate).toBeChecked();
+  await user.click(
+    screen.getByRole("button", { name: "Merge and generate notes" }),
+  );
+  expect(JSON.parse(fetch.mock.calls[0][1]!.body as string)).toMatchObject({
+    generate_notes: true,
+  });
+  await user.click(generate);
+  await user.click(screen.getByRole("button", { name: "Merge recordings" }));
+  expect(
+    JSON.parse(fetch.mock.calls[1][1]!.body as string).generate_notes,
+  ).not.toBe(true);
+});
+
+it("keeps note generation unavailable without saved preparation", async () => {
+  const user = userEvent.setup();
+  render(
+    <MergeRecordings
+      lectures={[recording, second]}
+      apiKeyConfigured
+      onSaved={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  await user.click(screen.getByRole("checkbox", { name: /Part one/ }));
+  await user.click(screen.getByRole("checkbox", { name: /Part two/ }));
+  expect(
+    screen.getByRole("checkbox", { name: "Generate notes after merging" }),
+  ).toBeDisabled();
+});
+
 it("merges keyboard-selected parts in displayed order and locks the synchronous request", async () => {
   let finish!: (response: Response) => void;
   const fetch = vi.fn(

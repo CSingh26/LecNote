@@ -10,7 +10,8 @@ merge() creates a lecture only after its independent audio is verified. Source
 lectures are never changed. Provenance lives in merge_sources/segment_sources,
 outside the strict Transcript schema. If any source lacks a transcript, the
 available text is retained as partial_transcript and transcript remains None so
-the worker can transcribe the complete merged recording.
+the worker can transcribe the complete merged recording. A pending final pass
+also makes a source incomplete unless its transcript was edited by the user.
 
 mark_finalized() must be called after a saved upload or final live WAV assembly,
 not on recording start/stop alone. Existing dates are never inferred or reset.
@@ -22,6 +23,7 @@ a database pointer to a half-written replacement. Chunk transcript records stay.
 import json
 import math
 import os
+import shutil
 import subprocess
 import tempfile
 import time
@@ -344,7 +346,8 @@ class MediaService:
             },
         )
 
-    def merge(self, lecture_ids, *, title=None, busy_ids=(), job_id=None, cancelled=None):
+    def merge(self, lecture_ids, *, title=None, busy_ids=(), job_id=None, cancelled=None,
+              require_preparation=False):
         """Merge ordered, distinct same-course recordings without modifying inputs.
 
         Raises MediaBusy for ANY active recording or busy input (never silently
@@ -364,12 +367,36 @@ class MediaService:
         course = lectures[0].get("course_id")
         if not course or any(item.get("course_id") != course for item in lectures):
             raise MediaError("Merged recordings must belong to the same class")
+        contexts = [
+            f"From {item.get('title') or item['id']}:\n{item['context'].strip()}"
+            for item in lectures if (item.get("context") or "").strip()
+        ]
+        merged_context = "\n\n".join(contexts)
+        if len(merged_context) > 100_000:
+            raise MediaError("Merged context exceeds the 100,000 character limit; shorten source notes before merging")
+        selected_resource_ids = []
+        for item in lectures:
+            for resource_id in item.get("selected_resource_ids") or []:
+                resource = self.repo.get("resources", resource_id)
+                if (resource and resource.get("course_id") == course
+                        and (resource.get("text") or "").strip()
+                        and resource_id not in selected_resource_ids):
+                    selected_resource_ids.append(resource_id)
+        if len(selected_resource_ids) > 50:
+            raise MediaError("Merged materials exceed the 50-item limit; deselect materials before merging")
+        if require_preparation and not contexts and not selected_resource_ids:
+            raise MediaError("Add a recording note or select class materials before generating notes")
         if any(self._busy(item, busy_ids, job_id) for item in lectures):
             raise MediaBusy("A selected recording is busy; wait before merging")
         paths = [self._source(item) for item in lectures]
         fingerprints = [_fingerprint(path) for path in paths]
         if sum(path.stat().st_size for path in paths) > self.limits.max_source_bytes:
             raise MediaError("Combined recordings exceed the source byte limit")
+        complete_by_source = [
+            item.get("transcript") is not None
+            and not (item.get("final_transcription_pending") and not item.get("transcript_edited"))
+            for item in lectures
+        ]
         transcripts = []
         try:
             for item in lectures:
@@ -389,7 +416,9 @@ class MediaService:
             raise MediaError("Combined recordings exceed the duration limit")
         segments, segment_sources, merge_sources = [], [], []
         offset = 0.0
-        for item, transcript, length in zip(lectures, transcripts, durations):
+        for item, transcript, length, source_complete in zip(
+            lectures, transcripts, durations, complete_by_source
+        ):
             # Whisper timestamps are estimates, unlike measured audio duration.
             # Bound small tail overruns in the copy below, retaining the original
             # timestamps in provenance. Never collapse a wholly out-of-audio segment.
@@ -408,7 +437,7 @@ class MediaService:
                     "source_name": item.get("source_name", ""),
                     "offset": offset,
                     "duration": length,
-                    "transcript_available": item.get("transcript") is not None,
+                    "transcript_available": source_complete,
                     **({"merge_sources": item["merge_sources"]} if item.get("merge_sources") else {}),
                 }
             )
@@ -454,7 +483,7 @@ class MediaService:
         hints = languages | {item.get("language", "") for item in lectures}
         supported_hints = hints.intersection(_LANGUAGE_CODES)
         language = next(iter(supported_hints)) if len(supported_hints) == 1 else ""
-        complete = all(item.get("transcript") is not None for item in lectures)
+        complete = all(complete_by_source)
         identifier = str(uuid4())
         folder = self._folder(identifier)
         folder.mkdir(parents=True, exist_ok=False)
@@ -465,12 +494,43 @@ class MediaService:
                 temporary = Path(scratch) / "recording.m4a"
                 self._encode(paths, temporary, cancelled=cancelled)
                 self._validate(temporary, duration, cancelled=cancelled)
+                copied_attachments = []
+                staged_attachments = Path(scratch) / "attachments"
+                for item in lectures:
+                    for attachment in item.get("attachments") or []:
+                        source = Path(attachment.get("path") or "")
+                        source_folder = self._folder(item["id"]) / "attachments"
+                        if (source_folder.is_symlink() or source.is_symlink() or not source.is_file()
+                                or source.resolve().parent != source_folder.resolve()):
+                            raise MediaError("A source attachment is missing or outside its lecture")
+                        attachment_id = str(uuid4())
+                        filename = attachment_id + source.suffix
+                        staged_attachments.mkdir(exist_ok=True)
+                        try:
+                            shutil.copyfile(source, staged_attachments / filename)
+                        except OSError as exc:
+                            raise MediaError("A source attachment could not be copied") from exc
+                        copied_attachments.append({
+                            **attachment,
+                            "id": attachment_id,
+                            "path": str(folder / "attachments" / filename),
+                            "url": f"/api/lectures/{identifier}/attachments/{attachment_id}",
+                            "source_lecture_id": attachment.get("source_lecture_id", item["id"]),
+                            "source_attachment_id": attachment.get("source_attachment_id", attachment["id"]),
+                        })
                 _cancel(cancelled)
                 if any(
                     self._lecture(item["id"]) != item or self._busy(item, busy_ids, job_id)
                     for item in lectures
                 ) or any(_fingerprint(path) != stamp for path, stamp in zip(paths, fingerprints)):
                     raise MediaBusy("A source recording changed during the merge")
+                if copied_attachments:
+                    (folder / "attachments").mkdir()
+                    for attachment in copied_attachments:
+                        shutil.move(
+                            str(staged_attachments / Path(attachment["path"]).name),
+                            attachment["path"],
+                        )
                 self._publish(temporary, target)
                 timestamp = _date()
                 result = self.repo.create(
@@ -492,8 +552,9 @@ class MediaService:
                         "notes": None,
                         "notes_stale": False,
                         "user_notes": "",
-                        "context": "",
-                        "attachments": [],
+                        "context": merged_context,
+                        "selected_resource_ids": selected_resource_ids,
+                        "attachments": copied_attachments,
                         "error": None,
                         "finalized_at": timestamp.isoformat(),
                         "compression": {
@@ -507,8 +568,7 @@ class MediaService:
                 return result
         finally:
             if not published:
-                target.unlink(missing_ok=True)
-                folder.rmdir()
+                shutil.rmtree(folder)
 
     @staticmethod
     def _publish(temporary, target):

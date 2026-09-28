@@ -58,6 +58,137 @@ def test_merge_api_preserves_sources_and_waits_for_user_context(tmp_path):
         assert all(client.get(f"/api/lectures/{identifier}/media").content == audio() for identifier in ids)
 
 
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="FFmpeg required for real merge")
+def test_merge_api_explicit_note_generation_uses_retained_preparation(tmp_path):
+    app = create_app(Settings(data_dir=tmp_path, api_key="test-key"), start_worker=False)
+    with TestClient(app) as client:
+        course = client.post("/api/courses", json={"name": "ACC502"}).json()
+        material = client.post(
+            f"/api/courses/{course['id']}/resources/note",
+            json={"name": "Formula sheet", "text": "Assets = liabilities + equity"},
+        ).json()
+        ids = []
+        for title in ("First", "Second"):
+            item = client.post(
+                "/api/lectures", files={"file": ("recording.wav", audio())},
+                data={"title": title, "course_id": course["id"], "process": "false"},
+            ).json()
+            ids.append(item["id"])
+            assert client.put(f"/api/lectures/{item['id']}/transcript", json={
+                "language": "en", "duration": 1,
+                "segments": [{"id": 0, "start": 0, "end": 1, "text": title}],
+            }).status_code == 200
+        assert client.put(f"/api/lectures/{ids[0]}/preparation", json={
+            "context": "Focus on assets", "selected_resource_ids": [material["id"]],
+        }).status_code == 200
+        attachment = client.post(
+            f"/api/lectures/{ids[0]}/attachments", files={"file": ("example.txt", b"An asset example")},
+        ).json()
+
+        ordinary = client.post("/api/lectures/merge", json={
+            "title": "Archive", "lecture_ids": ids,
+        })
+        assert ordinary.status_code == 201, ordinary.text
+        assert ordinary.json()["preparation_ready"] is True
+        assert ordinary.json()["job"] is None
+
+        response = client.post("/api/lectures/merge", json={
+            "title": "Full class", "lecture_ids": ids, "generate_notes": True,
+        })
+
+        assert response.status_code == 201, response.text
+        merged = response.json()
+        assert merged["preparation_ready"] is True
+        assert merged["selected_resource_ids"] == [material["id"]]
+        assert merged["job"]["status"] == "queued"
+        assert merged["job"]["transcribe_only"] is False
+        assert merged["attachments"][0]["id"] != attachment["id"]
+        assert client.get(
+            f"/api/lectures/{merged['id']}/attachments/{merged['attachments'][0]['id']}"
+        ).content == b"An asset example"
+        assert client.get(f"/api/lectures/{ids[0]}/attachments/{attachment['id']}").content == b"An asset example"
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="FFmpeg required for real merge")
+def test_merge_api_pending_source_queues_full_transcription_before_notes(tmp_path):
+    app = create_app(Settings(data_dir=tmp_path, api_key="test-key"), start_worker=False)
+    with TestClient(app) as client:
+        course = client.post("/api/courses", json={"name": "Class"}).json()
+        ids = [client.post(
+            "/api/lectures", files={"file": ("recording.wav", audio())},
+            data={"title": title, "course_id": course["id"], "process": "false"},
+        ).json()["id"] for title in ("First", "Second")]
+        for identifier, title in zip(ids, ("First", "Second")):
+            assert client.put(f"/api/lectures/{identifier}/transcript", json={
+                "language": "en", "duration": 1,
+                "segments": [{"id": 0, "start": 0, "end": 1, "text": title}],
+            }).status_code == 200
+        app.state.repo.update("lectures", ids[0], {
+            "final_transcription_pending": True, "transcript_edited": False,
+        })
+        assert client.put(f"/api/lectures/{ids[0]}/preparation", json={
+            "context": "Focus on this class", "selected_resource_ids": [],
+        }).status_code == 200
+
+        response = client.post("/api/lectures/merge", json={
+            "title": "Complete class", "lecture_ids": ids, "generate_notes": True,
+        })
+
+        assert response.status_code == 201, response.text
+        merged = response.json()
+        assert merged["transcript"] is None
+        assert [segment["text"] for segment in merged["partial_transcript"]["segments"]] == ["First", "Second"]
+        assert merged["job"]["status"] == "queued"
+        assert merged["job"]["transcribe_only"] is False
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="FFmpeg required for real merge")
+@pytest.mark.parametrize("prepared,key", [(False, "test-key"), (True, "")])
+def test_merge_api_rejects_note_generation_without_preparation_or_key(tmp_path, prepared, key):
+    app = create_app(Settings(data_dir=tmp_path, api_key=key), start_worker=False)
+    with TestClient(app) as client:
+        course = client.post("/api/courses", json={"name": "Class"}).json()
+        ids = [client.post(
+            "/api/lectures", files={"file": ("recording.wav", audio())},
+            data={"title": title, "course_id": course["id"], "process": "false"},
+        ).json()["id"] for title in ("First", "Second")]
+        if prepared:
+            assert client.put(f"/api/lectures/{ids[0]}/preparation", json={
+                "context": "Use this context", "selected_resource_ids": [],
+            }).status_code == 200
+        response = client.post("/api/lectures/merge", json={
+            "title": "Full class", "lecture_ids": ids, "generate_notes": True,
+        })
+        assert response.status_code == 422
+        assert {item["id"] for item in app.state.repo.list("lectures")} == set(ids)
+        assert app.state.repo.list("jobs") == []
+
+
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="FFmpeg required for real merge")
+def test_merge_api_queue_failure_rolls_back_destination_for_retry(tmp_path, monkeypatch):
+    app = create_app(Settings(data_dir=tmp_path), start_worker=False)
+    with TestClient(app) as client:
+        course = client.post("/api/courses", json={"name": "Class"}).json()
+        ids = [client.post(
+            "/api/lectures", files={"file": ("recording.wav", audio())},
+            data={"title": title, "course_id": course["id"], "process": "false"},
+        ).json()["id"] for title in ("First", "Second")]
+        before = app.state.repo.list("lectures")
+        folders = set((tmp_path / "lectures").iterdir())
+
+        def fail_after_partial_job(lecture_id, **kwargs):
+            app.state.repo.create("jobs", {"lecture_id": lecture_id, "status": "queued"})
+            raise RuntimeError("Queue unavailable")
+
+        monkeypatch.setattr(app.state.jobs, "enqueue", fail_after_partial_job)
+        response = client.post("/api/lectures/merge", json={"title": "Full class", "lecture_ids": ids})
+
+        assert response.status_code == 503
+        assert app.state.repo.list("lectures") == before
+        assert app.state.repo.list("jobs") == []
+        assert set((tmp_path / "lectures").iterdir()) == folders
+
+
 def test_course_storage_preference_can_return_to_inherited(tmp_path):
     with TestClient(create_app(Settings(data_dir=tmp_path), start_worker=False)) as client:
         course = client.post("/api/courses", json={"name": "ACC502", "optimize_recordings": False}).json()

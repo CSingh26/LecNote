@@ -127,6 +127,7 @@ export interface Lecture {
   notes_stale?: boolean;
   user_notes: string;
   attachments: Attachment[];
+  attachment_count?: number;
   error: string | null;
   job: Job | null;
   course_name?: string;

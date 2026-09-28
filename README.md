@@ -19,6 +19,11 @@ remain authoritative. Older finalized live recordings refresh once on their next
 processing run if they have not been manually edited.
 When a full pass changes transcript segments, stale relevance classifications
 and overrides are cleared before analysis so they cannot be applied to different speech.
+Merges retain saved preparation, selected class resources, and independent copies
+of lecture attachments. With a configured key and prepared sources, **Merge and
+generate notes** queues new notes for the merged lecture; uncheck the generation
+option to merge only. Partial or unfinished transcripts trigger full local
+transcription. Oversized preparation is rejected without changing the originals.
 
 ## v1.0.1 release
 

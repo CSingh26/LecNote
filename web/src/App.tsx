@@ -49,7 +49,9 @@ export default function App() {
   const health = useResource<{ status: string }>("/health", 15000);
   const recording = useRecorder();
   const [pathname, query = ""] = route.replace(/^#\/?/, "").split("?");
-  const [page = "library", encodedId, ...extra] = (pathname || "library").split("/");
+  const [page = "library", encodedId, ...extra] = (pathname || "library").split(
+    "/",
+  );
   let id = "";
   try {
     id = encodedId ? decodeURIComponent(encodedId) : "";
@@ -293,6 +295,7 @@ export default function App() {
               onNew={(mode, courseId) => setCreate({ mode, courseId })}
               version={version}
               initialCourse={params.get("course") || ""}
+              apiKeyConfigured={Boolean(settings.data?.api_key_configured)}
             />
           )}
         </main>

@@ -114,6 +114,93 @@ def test_merge_order_offsets_provenance_and_sources_unchanged(library):
 
 
 @real_audio
+def test_merge_retains_preparation_and_owns_copied_attachments(library):
+    repo, settings, service = library
+    shared = repo.create("resources", {"course_id": "course", "kind": "note", "name": "Outline", "text": "Outline"})
+    second = repo.create("resources", {"course_id": "course", "kind": "note", "name": "Examples", "text": "Examples"})
+    foreign = repo.create("resources", {"course_id": "other", "kind": "note", "name": "Other", "text": "Other"})
+    source = settings.lecture_dir("a") / "attachments" / "handout.txt"
+    source.parent.mkdir()
+    source.write_text("Study material")
+    original_attachment = {
+        "id": "handout", "name": "handout.txt", "kind": "txt", "text": "Study material",
+        "path": str(source), "url": "/api/lectures/a/attachments/handout", "error": None,
+    }
+    a = lecture(library, "a", context="Define assets", selected_resource_ids=[shared["id"], foreign["id"]],
+                attachments=[original_attachment])
+    b = lecture(library, "b", context="Review liabilities", selected_resource_ids=[shared["id"], second["id"]])
+
+    merged = service.merge(["a", "b"])
+
+    assert merged["context"] == "From a:\nDefine assets\n\nFrom b:\nReview liabilities"
+    assert merged["selected_resource_ids"] == [shared["id"], second["id"]]
+    copied = merged["attachments"]
+    assert len(copied) == 1
+    assert copied[0]["id"] != original_attachment["id"]
+    assert copied[0]["source_lecture_id"] == "a"
+    assert copied[0]["source_attachment_id"] == "handout"
+    assert copied[0]["url"] == f"/api/lectures/{merged['id']}/attachments/{copied[0]['id']}"
+    assert Path(copied[0]["path"]).read_text() == "Study material"
+    assert Path(copied[0]["path"]) != source
+    assert repo.get("lectures", "a") == a
+    assert repo.get("lectures", "b") == b
+
+    repo.delete("lectures", "a")
+    shutil.rmtree(settings.data_dir / "lectures" / "a")
+    assert Path(copied[0]["path"]).read_text() == "Study material"
+
+
+@real_audio
+@pytest.mark.parametrize("source_kind", ["missing", "symlinked_folder"])
+def test_merge_invalid_attachment_leaves_no_destination(library, source_kind):
+    repo, settings, service = library
+    if source_kind == "symlinked_folder":
+        outside = settings.data_dir / "outside"
+        outside.mkdir()
+        (outside / "missing.txt").write_text("Outside material")
+        (settings.lecture_dir("a") / "attachments").symlink_to(outside, target_is_directory=True)
+    lecture(library, "a", attachments=[{
+        "id": "missing", "name": "missing.txt", "kind": "txt", "text": "Text",
+        "path": str(settings.data_dir / "lectures" / "a" / "attachments" / "missing.txt"),
+    }])
+    lecture(library, "b")
+    before = repo.list("lectures")
+    folders = set((settings.data_dir / "lectures").iterdir())
+
+    with pytest.raises(MediaError, match="source attachment"):
+        service.merge(["a", "b"])
+
+    assert repo.list("lectures") == before
+    assert set((settings.data_dir / "lectures").iterdir()) == folders
+
+
+@pytest.mark.parametrize("limit", ["context", "resources"])
+def test_merge_rejects_preparation_exceeding_editable_limits_before_encoding(library, monkeypatch, limit):
+    repo, settings, service = library
+    if limit == "context":
+        first = {"context": "a" * 50_000}
+        second = {"context": "b" * 50_000}
+    else:
+        ids = [repo.create("resources", {
+            "course_id": "course", "kind": "note", "name": f"Material {index}", "text": "Readable",
+        })["id"] for index in range(51)]
+        first = {"selected_resource_ids": ids[:50]}
+        second = {"selected_resource_ids": ids[50:]}
+    lecture(library, "a", **first)
+    lecture(library, "b", **second)
+    before = repo.list("lectures")
+    folders = set((settings.data_dir / "lectures").iterdir())
+    monkeypatch.setattr(service, "_validate", lambda *args, **kwargs: 1)
+    monkeypatch.setattr(service, "_encode", lambda *args, **kwargs: pytest.fail("Encoding started"))
+
+    with pytest.raises(MediaError, match="(context|materials).*(limit|maximum)"):
+        service.merge(["a", "b"])
+
+    assert repo.list("lectures") == before
+    assert set((settings.data_dir / "lectures").iterdir()) == folders
+
+
+@real_audio
 @pytest.mark.parametrize("partial", [False, True])
 @pytest.mark.parametrize("overrun", [1.248, 2.0])
 def test_merge_bounds_small_tail_overrun_without_changing_sources(library, partial, overrun):
@@ -504,6 +591,26 @@ def test_missing_transcript_retains_partial_text_for_full_retranscription(librar
     assert merged["transcript"] is None
     assert merged["partial_transcript"]["segments"][0]["text"] == "a"
     assert merged["segment_sources"][0]["source_lecture_id"] == "a"
+
+
+@real_audio
+@pytest.mark.parametrize("edited", [False, True])
+def test_pending_source_transcript_is_partial_unless_user_edited(library, edited):
+    repo, _, service = library
+    source = lecture(library, "a", final_transcription_pending=True, transcript_edited=edited)
+    lecture(library, "b")
+
+    merged = service.merge(["a", "b"])
+
+    if edited:
+        assert [segment["text"] for segment in merged["transcript"]["segments"]] == ["a", "b"]
+        assert merged["partial_transcript"] is None
+        assert merged["merge_sources"][0]["transcript_available"] is True
+    else:
+        assert merged["transcript"] is None
+        assert [segment["text"] for segment in merged["partial_transcript"]["segments"]] == ["a", "b"]
+        assert merged["merge_sources"][0]["transcript_available"] is False
+    assert repo.get("lectures", "a") == source
 
 
 @real_audio

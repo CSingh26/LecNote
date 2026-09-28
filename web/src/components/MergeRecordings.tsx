@@ -29,10 +29,12 @@ function unavailable(source: MergeSource) {
 
 export function MergeRecordings({
   lectures,
+  apiKeyConfigured = false,
   onClose,
   onSaved,
 }: {
   lectures: MergeSource[];
+  apiKeyConfigured?: boolean;
   onClose: () => void;
   onSaved: (lecture: Lecture) => void;
 }) {
@@ -41,8 +43,20 @@ export function MergeRecordings({
   const [busy, setBusy] = useState(false);
   const submitting = useRef(false);
   const [error, setError] = useState("");
+  const [generateNotes, setGenerateNotes] = useState(true);
   const byId = new Map(lectures.map((lecture) => [lecture.id, lecture]));
   const selected = ids.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []));
+  const prepared = selected.some((source) => source.preparation_ready);
+  const canGenerateNotes = apiKeyConfigured && prepared;
+  const willGenerateNotes = canGenerateNotes && generateNotes;
+  const resourceCount = new Set(
+    selected.flatMap((source) => source.selected_resource_ids ?? []),
+  ).size;
+  const attachmentCount = selected.reduce(
+    (sum, source) =>
+      sum + (source.attachment_count ?? source.attachments?.length ?? 0),
+    0,
+  );
   const course = selected[0]?.course_id;
   const duration = selected.reduce(
     (sum, row) =>
@@ -103,7 +117,11 @@ export function MergeRecordings({
     try {
       const lecture = await api<Lecture>(
         "/lectures/merge",
-        json("POST", { lecture_ids: ids, title: title.trim() }),
+        json("POST", {
+          lecture_ids: ids,
+          title: title.trim(),
+          ...(willGenerateNotes ? { generate_notes: true } : {}),
+        }),
       );
       onSaved(lecture);
     } catch (error) {
@@ -218,6 +236,29 @@ export function MergeRecordings({
               / 4 GiB
             </span>
           </div>
+          {ids.length > 0 && (
+            <p className="muted small" aria-live="polite">
+              {resourceCount} selected class resources · {attachmentCount}{" "}
+              attached files
+            </p>
+          )}
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={willGenerateNotes}
+              disabled={busy || !canGenerateNotes}
+              onChange={(event) => setGenerateNotes(event.target.checked)}
+              aria-describedby="merge-generation-hint"
+            />
+            Generate notes after merging
+          </label>
+          <p id="merge-generation-hint" className="muted small">
+            {!apiKeyConfigured
+              ? "An OpenAI API key is required for notes."
+              : !prepared
+                ? "Save a recording note or select class materials on a source lecture to enable notes."
+                : "Uses OpenAI with the saved preparation from these recordings."}
+          </p>
           <ErrorNotice error={problem || error} />
           {busy && (
             <p role="status" className="muted">
@@ -235,7 +276,9 @@ export function MergeRecordings({
             variant="primary"
             disabled={!canMerge}
           >
-            Merge recordings
+            {willGenerateNotes
+              ? "Merge and generate notes"
+              : "Merge recordings"}
           </Button>
         </footer>
       </form>
