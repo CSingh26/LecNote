@@ -142,6 +142,7 @@ export default function App() {
   }, [title]);
   useEffect(() => {
     if (!drawer) return;
+    document.querySelector<HTMLElement>("#course-rail nav a")?.focus();
     const handler = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setDrawer(false);
@@ -220,7 +221,9 @@ export default function App() {
                 <span>
                   {recording.phase === "paused" ? "Paused" : "Recording"}
                 </span>
-                <span className="record-elapsed">{time(recording.elapsed)}</span>
+                <span className="record-elapsed">
+                  {time(recording.elapsed)}
+                </span>
               </>
             ) : (
               <span>Record lecture</span>

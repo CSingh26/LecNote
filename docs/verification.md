@@ -1,5 +1,24 @@
 # Verification record
 
+## Course Editions redesign (branch `redesign/reading-workspace`)
+
+Frontend-only redesign, verified in isolation with synthetic Playwright route
+fixtures; no real library, running server, or credentials were used.
+
+- Python: 463 tests passed; Ruff clean. Frontend: 120 tests passed (course
+  materials panel, Materials page, Add lecture menu, route/course sync, reader
+  index, close/unsaved-edit protection, keyboard tabs, retry). TypeScript and
+  production build passed; Prettier clean on changed files.
+- Chromium: 24 passed, including the new `tests/redesign.spec.ts` (geometry at
+  320/390/1280/1440 px with no horizontal overflow, 12 reachable courses, long
+  titles, keyboard menu and drawer focus, resource errors with retry, 160ms and
+  180ms motion, reduced motion) and the updated recording flows (capture
+  survives Library and Materials navigation without new capture or generation
+  requests).
+- Evidence and limits: `.impeccable/review/README.md`. No paid OpenAI call,
+  physical microphone, or real-device check was performed for the redesign.
+
+
 ## v1.0.2 isolated verification
 
 The maintenance branch was developed and verified in a separate checkout and

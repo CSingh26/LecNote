@@ -162,7 +162,15 @@ test("remaining screens share the Course Editions system", async ({ page }) => {
   await installDemoApi(page);
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
-    for (const route of ["record", "courses", "jobs", "search", "settings"]) {
+    for (const route of [
+      "library",
+      "materials?course=phy101",
+      "record",
+      "courses",
+      "jobs",
+      "search",
+      "settings",
+    ]) {
       await page.goto(`/#/${route}`);
       await expect(page.locator("main h1").first()).toBeVisible();
       const size = await page
@@ -172,10 +180,123 @@ test("remaining screens share the Course Editions system", async ({ page }) => {
       expect(size).toBeLessThanOrEqual(32);
       await noHorizontalOverflow(page);
       await page.screenshot({
-        path: `${shots}/${route}-${width}.png`,
+        path: `${shots}/${route.split("?")[0]}-${width}-screen.png`,
         fullPage: width < 800,
       });
     }
   }
   expect(errors).toEqual([]);
+});
+
+test.describe("motion", () => {
+  test.use({ reducedMotion: "no-preference" });
+  test("course markers use 160ms and reveals use 180ms", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await installDemoApi(page);
+    await page.goto("/#/lecture/energy");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    const marker = await page
+      .locator(".course-rail nav a")
+      .nth(1)
+      .evaluate(
+        (node) => getComputedStyle(node, "::before").transitionDuration,
+      );
+    expect(marker.split(",").map((value) => value.trim())).toContain("0.16s");
+    const tab = await page
+      .locator(".tabs > button")
+      .first()
+      .evaluate((node) => getComputedStyle(node, "::after").transitionDuration);
+    expect(tab).toBe("0.16s");
+    await page
+      .getByRole("button", { name: "Preview Worked examples.md" })
+      .click();
+    const reveal = await page
+      .locator(".material-preview")
+      .evaluate((node) => getComputedStyle(node).animationDuration);
+    expect(reveal).toBe("0.18s");
+  });
+});
+
+test("reduced motion removes animation without hiding content", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await installDemoApi(page);
+  await page.goto("/#/lecture/energy");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Preview Worked examples.md" })
+    .click();
+  await page.getByRole("button", { name: "Add lecture" }).click();
+  for (const selector of [
+    "main",
+    ".reader-column",
+    "[role=tabpanel]",
+    ".material-preview",
+    ".menu-popover",
+  ]) {
+    const style = await page
+      .locator(selector)
+      .first()
+      .evaluate((node) => {
+        const computed = getComputedStyle(node);
+        return {
+          animation: computed.animationName,
+          opacity: computed.opacity,
+        };
+      });
+    expect(style).toEqual({ animation: "none", opacity: "1" });
+  }
+  const transition = await page
+    .locator(".tabs > button")
+    .first()
+    .evaluate((node) => getComputedStyle(node, "::after").transitionDuration);
+  expect(parseFloat(transition)).toBeLessThanOrEqual(0.001);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Add lecture" })).toBeFocused();
+});
+
+test("course material errors offer a retry beside the notes", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await installDemoApi(page, { failResources: true });
+  await page.goto("/#/lecture/energy");
+  const materials = page.getByRole("region", {
+    name: "Physics course materials",
+  });
+  await expect(materials.getByRole("alert")).toContainText(
+    "Course materials are unavailable.",
+  );
+  await expect(materials.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Kinetic energy" }),
+  ).toBeVisible();
+});
+
+test("narrow screens use a labelled drawer and a materials disclosure", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installDemoApi(page);
+  await page.goto("/#/lecture/energy");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await page.getByRole("button", { name: "Open courses" }).click();
+  await expect(
+    page.getByRole("navigation", { name: "Courses" }).getByRole("link").first(),
+  ).toBeFocused();
+  await page.keyboard.press("Escape");
+  const toggle = page.getByRole("button", { name: "Show course materials" });
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  const materials = page.getByRole("region", {
+    name: "Physics course materials",
+  });
+  await expect(materials.getByText("Energy reference.pdf")).toBeHidden();
+  await toggle.click();
+  await expect(
+    page.getByRole("button", { name: "Hide course materials" }),
+  ).toHaveAttribute("aria-expanded", "true");
+  await expect(materials.getByText("Energy reference.pdf")).toBeVisible();
+  await noHorizontalOverflow(page);
+  await page.screenshot({ path: `${shots}/reader-materials-390.png` });
 });

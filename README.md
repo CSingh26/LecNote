@@ -27,7 +27,13 @@ Implementation status:
   course materials. Record, Courses, Jobs, Search, and Settings use the same
   type, rules, and controls, without decorative eyebrows. Existing
   preparation, dirty-state, busy, and explicit-generation checks are unchanged.
-- Pending: motion and final responsive verification.
+- Done: purposeful motion (160ms markers, 180ms reveals, none under reduced
+  motion) and narrow layouts: a labelled course drawer, full-width reading with
+  a Lectures return link, and a course materials disclosure. Design tokens and
+  rules are documented in [DESIGN.md](DESIGN.md).
+- Outstanding: an independent finish review. Real-device and paid-AI behaviour
+  were not exercised for the redesign. Released metadata stays at 1.0.2 until a
+  new release is authorized.
 
 Visual measurements were taken from the approved comp and its generation
 record directly; the Impeccable `comp-spec`/`font-match` tooling was not

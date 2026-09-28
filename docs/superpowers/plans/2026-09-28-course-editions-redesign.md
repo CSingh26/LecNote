@@ -43,7 +43,7 @@
 - The panel lists/searches the selected course's resources, previews extracted text, and opens the original file. A clearly labeled Manage materials action opens the existing full upload/note/edit/delete dialog; closing it refreshes the panel.
 - The page exposes an explicit course selector; the all-course state lists course destinations instead of fetching every resource in parallel.
 
-- [ ] Write tests `shows only the selected course resources`, `clears source preview when course changes`, `shows resource errors with retry`, `opens existing management and refreshes on close`, and `does not fetch every course in the unselected state`. Assertions include:
+- [x] Write tests `shows only the selected course resources`, `clears source preview when course changes`, `shows resource errors with retry`, `opens existing management and refreshes on close`, and `does not fetch every course in the unselected state`. Assertions include:
 
 ```tsx
 expect(screen.getByText("Energy reference.pdf")).toBeVisible();
@@ -52,10 +52,10 @@ expect(screen.getByRole("link", { name: "Open original" }))
   .toHaveAttribute("href", "/api/courses/phy101/resources/source-1/file");
 ```
 
-- [ ] Run `npm --prefix web test -- src/components/CourseMaterialsPanel.test.tsx src/pages/Materials.test.tsx`; confirm failures identify absent behavior, not broken fixtures.
-- [ ] Implement the two components using current request cancellation, errors, native controls, and modal behavior. Use `encodeURIComponent` for IDs; render resource text as text/Markdown through the existing safe renderer, never raw HTML.
-- [ ] Run `npm --prefix web test` and `npm --prefix web run build`. Update README to distinguish implemented components from the still-pending routed redesign.
-- [ ] Commit and push the verified materials milestone.
+- [x] Run `npm --prefix web test -- src/components/CourseMaterialsPanel.test.tsx src/pages/Materials.test.tsx`; confirm failures identify absent behavior, not broken fixtures.
+- [x] Implement the two components using current request cancellation, errors, native controls, and modal behavior. Use `encodeURIComponent` for IDs; render resource text as text/Markdown through the existing safe renderer, never raw HTML.
+- [x] Run `npm --prefix web test` and `npm --prefix web run build`. Update README to distinguish implemented components from the still-pending routed redesign.
+- [x] Commit and push the verified materials milestone.
 
 ### Task 2: Shell and Reading Workspace
 
@@ -70,8 +70,8 @@ expect(screen.getByRole("link", { name: "Open original" }))
 - Preserve `#/record` as a valid route even though recording becomes a header action. Add `#/materials?course=<encoded-id>` to known routes; retain the not-found view.
 - Preserve `#/lecture/<id>` deep links and timestamp query parameters. Render the lecture route as the compact index plus the existing Lecture reader; its close action returns to the same course library. No auto-generated or fabricated selection for empty libraries.
 
-- [ ] Measure the approved comp using `comp-spec --grid`, per-element regions, `font-match --measure`, and `font-match --rank`; record the approved 32px heading correction. Follow the spec and plates gates before writing visual page code. No font selection from memory and no UI rasterization.
-- [ ] Add failing tests for the Materials destination, ten reachable courses, active course selection, Add lecture menu imports with selected course, Escape/focus restoration, and the existing merge flow reached through its contextual command. Key assertions:
+- [ ] Measure the approved comp using `comp-spec --grid`, per-element regions, `font-match --measure`, and `font-match --rank`; record the approved 32px heading correction. Follow the spec and plates gates before writing visual page code. No font selection from memory and no UI rasterization. _(Not run: comp-spec/font-match unavailable; measured from the comp and its generation record.)_
+- [x] Add failing tests for the Materials destination, ten reachable courses, active course selection, Add lecture menu imports with selected course, Escape/focus restoration, and the existing merge flow reached through its contextual command. Key assertions:
 
 ```tsx
 expect(screen.getByRole("link", { name: "Materials" }))
@@ -81,13 +81,13 @@ await user.click(screen.getByRole("menuitem", { name: "Import transcript" }));
 expect(screen.getByLabelText("Course")).toHaveValue("phy101");
 ```
 
-- [ ] Run the focused Vitest tests and verify the intended failures before implementation.
-- [ ] Add and run failing route tests: `keeps the lecture index visible beside selected notes`, `resolves the correct course for a direct lecture link`, `close reader returns to the selected course`, and `rejecting unsaved edits preserves the selected lecture`. Assert index and notes are both visible on desktop, the active lecture matches the URL, and accepting close restores the course-filtered library.
-- [ ] Implement compact top navigation, persistent recording action, yellow course rail, explicit All courses state, and contextual Add lecture/import/merge actions. Compose a compact lecture index beside the open Lecture title/player/tabs, notes, and materials. Keep every course reachable. Move shared tokens into the existing stylesheet rather than stacking a second theme on old overrides.
-- [ ] Use semantic rows and real selection only where it has a working purpose. Keep duration/date/status aligned, long names wrapping, and all-course labels truthful. No ornamental checkboxes or overflow buttons with no behavior.
-- [ ] Implement the approved first viewport with isolated demo fixtures and complete the hero gate, then apply its shared system to the remaining library states. All generated image text is replaced by semantic content.
-- [ ] Run `npm --prefix web test`, `npm --prefix web run build`, and the navigation/browser tests on a new strict-port server. Verify 320px/390px/1280px/1440px geometry without extra screenshot-polish loops.
-- [ ] Update README status, commit, and push the shell/reading-workspace milestone.
+- [x] Run the focused Vitest tests and verify the intended failures before implementation.
+- [x] Add and run failing route tests: `keeps the lecture index visible beside selected notes`, `resolves the correct course for a direct lecture link`, `close reader returns to the selected course`, and `rejecting unsaved edits preserves the selected lecture`. Assert index and notes are both visible on desktop, the active lecture matches the URL, and accepting close restores the course-filtered library.
+- [x] Implement compact top navigation, persistent recording action, yellow course rail, explicit All courses state, and contextual Add lecture/import/merge actions. Compose a compact lecture index beside the open Lecture title/player/tabs, notes, and materials. Keep every course reachable. Move shared tokens into the existing stylesheet rather than stacking a second theme on old overrides.
+- [x] Use semantic rows and real selection only where it has a working purpose. Keep duration/date/status aligned, long names wrapping, and all-course labels truthful. No ornamental checkboxes or overflow buttons with no behavior.
+- [ ] Implement the approved first viewport with isolated demo fixtures and complete the hero gate, then apply its shared system to the remaining library states. All generated image text is replaced by semantic content. _(Implemented with isolated fixtures; Impeccable hero gate not available.)_
+- [x] Run `npm --prefix web test`, `npm --prefix web run build`, and the navigation/browser tests on a new strict-port server. Verify 320px/390px/1280px/1440px geometry without extra screenshot-polish loops.
+- [x] Update README status, commit, and push the shell/reading-workspace milestone.
 
 ### Task 3: Reading and Remaining Screens
 
@@ -95,11 +95,11 @@ expect(screen.getByLabelText("Course")).toHaveValue("phy101");
 
 **Interfaces:** Preserve all existing component callbacks, especially Lecture `onDirty`, Preparation `onDirty/onReady/onBusy`, recorder state, and processing handlers. Reuse task 1's material panel for the actual lecture course. Do not broaden backend mutations.
 
-- [ ] Extend regressions for notes visible alongside preparation, dirty transcript navigation rejection, dirty preparation blocking generation, keyboard tab switching, unavailable-key behavior, failed processing retry, and recording survival across Library/Materials/Record navigation. Assert no paid-generation or capture request on navigation alone.
-- [ ] Run the focused Lecture/Preparation/Record tests to confirm each new behavior test fails as intended; unchanged safeguards may remain green characterization tests.
-- [ ] Complete the Lecture reader within task 2's retained index layout: compact title/player/tabs, open notes beside course resources, and contextual preparation/processing controls instead of an additional permanent column. Keep export, deletion confirmation, transcript, relevance, attachments, and review actions; distinguish course resources from attachments. Maintain disabled/readiness conditions verbatim while moving controls.
-- [ ] Apply the approved shell/type/control system to Record, Courses, Jobs, Search, Settings, modals, and error/empty/loading states. Preserve native recording-source selection, storage preferences, secret handling, and retry/cancel actions. Remove redundant decorative eyebrows, not meaningful validation or error content.
-- [ ] Run the full frontend suite/build and relevant browser recording/preparation/merge flows. Update README, commit, and push the all-screens milestone.
+- [x] Extend regressions for notes visible alongside preparation, dirty transcript navigation rejection, dirty preparation blocking generation, keyboard tab switching, unavailable-key behavior, failed processing retry, and recording survival across Library/Materials/Record navigation. Assert no paid-generation or capture request on navigation alone.
+- [x] Run the focused Lecture/Preparation/Record tests to confirm each new behavior test fails as intended; unchanged safeguards may remain green characterization tests.
+- [x] Complete the Lecture reader within task 2's retained index layout: compact title/player/tabs, open notes beside course resources, and contextual preparation/processing controls instead of an additional permanent column. Keep export, deletion confirmation, transcript, relevance, attachments, and review actions; distinguish course resources from attachments. Maintain disabled/readiness conditions verbatim while moving controls.
+- [x] Apply the approved shell/type/control system to Record, Courses, Jobs, Search, Settings, modals, and error/empty/loading states. Preserve native recording-source selection, storage preferences, secret handling, and retry/cancel actions. Remove redundant decorative eyebrows, not meaningful validation or error content.
+- [x] Run the full frontend suite/build and relevant browser recording/preparation/merge flows. Update README, commit, and push the all-screens milestone.
 
 ### Task 4: Motion, Responsive Verification, and Finish
 
@@ -107,13 +107,13 @@ expect(screen.getByLabelText("Course")).toHaveValue("phy101");
 
 **Interfaces:** Use `prefers-reduced-motion: reduce`; do not alter recording/media timing or native control behavior. Course markers use 160ms changes; previews/dialogs use 180ms reveals; no unbounded animation or hidden-by-default content.
 
-- [ ] Write browser checks for reduced-motion visibility, menu/drawer focus and Escape, long titles, resource errors, dense courses, and no horizontal overflow. Assert representative animation durations become zero/near-zero under reduced motion and controls remain operable.
-- [ ] Run the checks before motion/responsive implementation and confirm the target failures.
-- [ ] Implement purposeful transitions and narrow-screen course/material disclosures. At narrow widths, switch between lecture browsing and full-width reading with an explicit return action; do not squeeze all four desktop regions onto mobile. Keep stable controls, native scrolling, selection, unsaved-edit protection, and full-width reading without overlap.
-- [ ] Complete Impeccable sections/motion/responsive gates. Capture all required desktop/mobile routes in one batched screenshot round, inspect every capture, fix as one batch, and use at most one confirmation round. Run the single mechanical detector, then the fresh shipped finish reviewer with approved comp, specs, diffs, and all viewport evidence.
-- [ ] Address only the reviewer's material findings within its bounded verdict rounds. Have the shipped documenter produce token-bearing DESIGN.md and design.json from the finished app.
-- [ ] Run full backend tests, frontend tests/build, browser tests, and repository lint/format checks. Confirm original server identities/ports are unchanged and only the isolated preview was started. Report any unverified real-device or paid-AI behavior explicitly.
-- [ ] Update product/setup/status docs, record verification evidence, commit, and push the verified final milestone. Leave the independent preview running and share its URL. A redesign is appropriate for a future minor version, but keep released `1.0.2` metadata until a new release is authorized.
+- [x] Write browser checks for reduced-motion visibility, menu/drawer focus and Escape, long titles, resource errors, dense courses, and no horizontal overflow. Assert representative animation durations become zero/near-zero under reduced motion and controls remain operable.
+- [x] Run the checks before motion/responsive implementation and confirm the target failures.
+- [x] Implement purposeful transitions and narrow-screen course/material disclosures. At narrow widths, switch between lecture browsing and full-width reading with an explicit return action; do not squeeze all four desktop regions onto mobile. Keep stable controls, native scrolling, selection, unsaved-edit protection, and full-width reading without overlap.
+- [ ] Complete Impeccable sections/motion/responsive gates. Capture all required desktop/mobile routes in one batched screenshot round, inspect every capture, fix as one batch, and use at most one confirmation round. Run the single mechanical detector, then the fresh shipped finish reviewer with approved comp, specs, diffs, and all viewport evidence. _(Batched capture, fix, and confirmation rounds done; detector and shipped finish reviewer unavailable.)_
+- [ ] Address only the reviewer's material findings within its bounded verdict rounds. Have the shipped documenter produce token-bearing DESIGN.md and design.json from the finished app. _(Pending an independent finish review; DESIGN.md and design.json written by hand.)_
+- [x] Run full backend tests, frontend tests/build, browser tests, and repository lint/format checks. Confirm original server identities/ports are unchanged and only the isolated preview was started. Report any unverified real-device or paid-AI behavior explicitly.
+- [x] Update product/setup/status docs, record verification evidence, commit, and push the verified final milestone. Leave the independent preview running and share its URL. A redesign is appropriate for a future minor version, but keep released `1.0.2` metadata until a new release is authorized. _(Done except the long-running shared preview; browser checks use Playwright's own port 4175 server.)_
 
 ## Plan Review
 

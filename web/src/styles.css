@@ -2533,10 +2533,32 @@ main {
 .reader-context .processing-bar > .actions {
   justify-content: flex-end;
 }
+@media (max-width: 640px) {
+  .reader-context .processing-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .reader-context .processing-bar > .actions {
+    justify-content: flex-start;
+  }
+}
 .reader-context .processing-bar .job-progress {
   flex: 1;
 }
 /* Course materials */
+.course-materials-body {
+  display: contents;
+}
+.materials-disclosure {
+  display: none;
+}
+.materials-disclosure svg {
+  transition: transform var(--dur-marker) var(--ease);
+}
+.materials-disclosure[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
 .course-materials {
   display: grid;
   gap: 12px;
@@ -3045,6 +3067,23 @@ main {
   }
 }
 @media (max-width: 1180px) {
+  .course-materials-rail .materials-disclosure {
+    display: inline-flex;
+  }
+  .course-materials-rail .course-materials-header {
+    justify-content: flex-start;
+  }
+  .course-materials-rail .course-materials-header > .button {
+    margin-left: auto;
+  }
+  .course-materials-rail.is-collapsed .course-materials-body {
+    display: none;
+  }
+  .course-materials-rail.is-expanded .course-materials-body {
+    display: grid;
+    gap: 12px;
+    animation: preview-in var(--dur-reveal) var(--ease) both;
+  }
   .reader-sheet {
     grid-template-columns: minmax(0, 1fr);
   }
