@@ -61,9 +61,7 @@ it("does not fetch every course in the unselected state", async () => {
 it("loads one course from the explicit course selector", async () => {
   const onCourseChange = vi.fn();
   const user = userEvent.setup();
-  render(
-    <MaterialsPage courses={courses} onCourseChange={onCourseChange} />,
-  );
+  render(<MaterialsPage courses={courses} onCourseChange={onCourseChange} />);
   await user.selectOptions(
     screen.getByRole("combobox", { name: "Course" }),
     "phy101",
@@ -72,9 +70,9 @@ it("loads one course from the explicit course selector", async () => {
   expect(await screen.findByText("Energy reference.pdf")).toBeVisible();
   await waitFor(() =>
     expect(
-      requests.filter((url) => url.includes("/resources")).every((url) =>
-        url.startsWith("/api/courses/phy101/resources"),
-      ),
+      requests
+        .filter((url) => url.includes("/resources"))
+        .every((url) => url.startsWith("/api/courses/phy101/resources")),
     ).toBe(true),
   );
 });

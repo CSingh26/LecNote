@@ -14,8 +14,20 @@ Implementation status:
 - Done: reusable course materials panel (per-course list, search, safe source
   preview, Open original, and Manage materials through the existing resource
   dialog) and a Materials page with an explicit course selector.
-- Pending: routed shell and Reading workspace, remaining screens, motion and
-  responsive verification.
+- Done: Course Editions shell — top navigation with a persistent cherry
+  Record lecture action, a solar-yellow course rail (every course reachable,
+  explicit All courses, drawer on narrow screens), an Add lecture menu
+  (upload recording, import transcript), contextual Merge recordings, and the
+  Reading workspace: a compact lecture index beside the open lecture with notes
+  and course materials side by side. Lecture links stay linkable; closing the
+  reader returns to the lecture's course library and honors unsaved edits.
+- Pending: remaining screens, motion and responsive verification.
+
+Visual measurements were taken from the approved comp and its generation
+record directly; the Impeccable `comp-spec`/`font-match` tooling was not
+available in this environment. Headings use a system condensed stack
+(Avenir Next Condensed, Roboto Condensed, Arial Narrow) rather than a
+downloaded font, keeping the app fully local.
 
 ## v1.0.2 maintenance update
 

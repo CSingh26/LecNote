@@ -25,7 +25,7 @@ export function MaterialsPage({
       <PageHeader
         title={course ? `${course.name} materials` : "Materials"}
         actions={
-          <label className="field inline-field">
+          <label className="inline-field">
             <span>Course</span>
             <select
               aria-label="Course"

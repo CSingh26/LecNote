@@ -1,41 +1,65 @@
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import {
   ArrowUpRight,
   BookOpen,
   FileAudio,
   FileText,
   Library as LibraryIcon,
-  Mic,
   Merge,
-  Plus,
   Search,
   Upload,
 } from "lucide-react";
 import type { Course, Lecture } from "../types";
 import { date, time, useResource } from "../lib/api";
 import { MergeRecordings } from "../components/MergeRecordings";
+import { ActionMenu } from "../components/ActionMenu";
 import {
   Button,
   CourseSelect,
   Empty,
   ErrorNotice,
   Loading,
-  PageHeader,
   Status,
 } from "../components/ui";
+
+// The compact index drops the year only when it is the current year.
+const shortDate = (value: string) => {
+  if (!value) return "";
+  const when = new Date(value);
+  return when.getFullYear() === new Date().getFullYear()
+    ? when.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    : date(value);
+};
+const statuses = [
+  "draft",
+  "queued",
+  "transcribing",
+  "generating",
+  "ready",
+  "failed",
+  "cancelled",
+  "recording",
+  "interrupted",
+];
 
 export function Library({
   courses,
   onNew,
+  onCourseChange,
   version,
   initialCourse = "",
   apiKeyConfigured = false,
+  layout = "full",
+  selectedLectureId,
 }: {
   courses: Course[];
   onNew: (mode: "upload" | "transcript", courseId: string) => void;
+  onCourseChange?: (courseId: string) => void;
   version: number;
   initialCourse?: string;
   apiKeyConfigured?: boolean;
+  layout?: "full" | "index";
+  selectedLectureId?: string;
 }) {
   const [course, setCourse] = useState(initialCourse);
   const [query, setQuery] = useState("");
@@ -48,155 +72,169 @@ export function Library({
   const rows = (lectures.data ?? []).filter(
     (item) => !status || item.status === status,
   );
+  const index = layout === "index";
+  const current = courses.find((item) => item.id === course);
+  const heading = current?.name || (course ? "Course" : "All courses");
+  const Heading = index ? "h2" : "h1";
+  const chooseCourse = (value: string) => {
+    setCourse(value);
+    onCourseChange?.(value);
+  };
+  // A course chosen in the rail is a destination, not a clearable filter.
+  const filtered = Boolean(
+    query || status || (course && !onCourseChange && !index),
+  );
+  const addMenu = (
+    <ActionMenu
+      label="Add lecture"
+      items={[
+        {
+          id: "upload",
+          label: "Upload recording",
+          icon: FileAudio,
+          onSelect: () => onNew("upload", course),
+        },
+        {
+          id: "transcript",
+          label: "Import transcript",
+          icon: Upload,
+          onSelect: () => onNew("transcript", course),
+        },
+      ]}
+    />
+  );
   return (
-    <>
-      <PageHeader
-        eyebrow="Your workspace"
-        title="Library"
-        actions={
-          <>
-            <Button
-              icon={Merge}
-              onClick={() => setMerging(true)}
-              disabled={lectures.loading || !lectures.data?.length}
-            >
-              Merge recordings
-            </Button>
-            <Button icon={Upload} onClick={() => onNew("transcript", course)}>
-              Import transcript
-            </Button>
-            <Button icon={Plus} onClick={() => onNew("upload", course)}>
-              New lecture
-            </Button>
-            <a
-              className="button primary"
-              href={`#/record${course ? `?course=${encodeURIComponent(course)}` : ""}`}
-            >
-              <Mic size={16} aria-hidden="true" />
-              Record lecture
-            </a>
-          </>
-        }
-      />
+    <div className={`library library-${layout}`}>
+      <header className="library-header">
+        <div>
+          <Heading>{heading}</Heading>
+          {current?.code && (
+            <span className="library-code">{current.code}</span>
+          )}
+        </div>
+        <div className="actions">{addMenu}</div>
+      </header>
       <div className="toolbar">
         <div className="search-input">
-          <Search size={17} />
+          <Search size={17} aria-hidden="true" />
           <input
+            type="search"
             aria-label="Search library"
-            placeholder="Find a lecture…"
+            placeholder="Search lectures"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <CourseSelect
-          courses={courses}
-          value={course}
-          onChange={setCourse}
-          all
-        />
+        {!index && (
+          <CourseSelect
+            courses={courses}
+            value={course}
+            onChange={chooseCourse}
+            all
+          />
+        )}
         <select
           aria-label="Filter by status"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
         >
           <option value="">All statuses</option>
-          {[
-            "draft",
-            "queued",
-            "transcribing",
-            "generating",
-            "ready",
-            "failed",
-            "cancelled",
-            "recording",
-            "interrupted",
-          ].map((s) => (
+          {statuses.map((s) => (
             <option key={s}>{s}</option>
           ))}
         </select>
       </div>
       <ErrorNotice error={lectures.error} retry={lectures.refresh} />
       <div className="section-label">
-        <span>LECTURES</span>
         <span>
           {lectures.data
             ? `${rows.length} ${rows.length === 1 ? "lecture" : "lectures"}`
-            : "—"}
+            : "Lectures"}
         </span>
+        <Button
+          icon={Merge}
+          className="quiet"
+          onClick={() => setMerging(true)}
+          disabled={lectures.loading || !lectures.data?.length}
+        >
+          Merge recordings
+        </Button>
       </div>
       {lectures.loading ? (
         <Loading label="Loading lectures" />
       ) : rows.length ? (
         <div className="lecture-list">
-          <div className="lecture-list-heading">
-            <span>Lecture</span>
-            <span>Course</span>
+          <div className="lecture-list-heading" aria-hidden="true">
+            <span>Title</span>
+            {!index && <span>Course</span>}
             <span>Status</span>
-            <span>Added</span>
-            <span />
+            <span>Duration</span>
+            <span>Date</span>
           </div>
-          {rows.map((lecture) => (
-            <a
-              key={lecture.id}
-              className="lecture-row"
-              href={`#/lecture/${lecture.id}`}
-            >
-              <span className="lecture-name">
-                <span
-                  className="file-icon"
-                  style={
-                    lecture.course_color
-                      ? ({
-                          "--accent": lecture.course_color,
-                        } as CSSProperties)
-                      : undefined
+          <ul>
+            {rows.map((lecture) => (
+              <li key={lecture.id}>
+                <a
+                  className="lecture-row"
+                  href={`#/lecture/${encodeURIComponent(lecture.id)}`}
+                  aria-current={
+                    lecture.id === selectedLectureId ? "page" : undefined
                   }
                 >
-                  {lecture.source_name ? (
-                    <FileAudio size={21} />
-                  ) : (
-                    <FileText size={21} />
+                  <span className="lecture-name">
+                    <strong>{lecture.title}</strong>
+                    <small>
+                      {lecture.source_name ? (
+                        <FileAudio size={13} aria-hidden="true" />
+                      ) : (
+                        <FileText size={13} aria-hidden="true" />
+                      )}
+                      {lecture.source_name || "Transcript"}
+                    </small>
+                  </span>
+                  {!index && (
+                    <span className="course-cell">
+                      <i
+                        style={{
+                          backgroundColor: lecture.course_color || "#c9c5b8",
+                        }}
+                      />
+                      {lecture.course_code ||
+                        lecture.course_name ||
+                        "Unassigned"}
+                    </span>
                   )}
-                </span>
-                <span>
-                  <strong>{lecture.title}</strong>
-                  <small>
-                    {lecture.duration
-                      ? time(lecture.duration)
-                      : "No duration yet"}
-                    {lecture.source_name
-                      ? ` · ${lecture.source_name}`
-                      : " · Transcript"}
-                  </small>
-                </span>
-              </span>
-              <span className="course-cell">
-                <i
-                  style={{ backgroundColor: lecture.course_color || "#b7b3cf" }}
-                />
-                {lecture.course_code || lecture.course_name || "Unassigned"}
-              </span>
-              <Status status={lecture.status} />
-              <span className="date-cell">{date(lecture.created_at)}</span>
-              <ArrowUpRight size={17} />
-            </a>
-          ))}
+                  <Status status={lecture.status} />
+                  <span className="duration-cell">
+                    {lecture.duration ? time(lecture.duration) : "—"}
+                  </span>
+                  <span className="date-cell">
+                    {index
+                      ? shortDate(lecture.created_at)
+                      : date(lecture.created_at)}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : !lectures.error ? (
         <Empty
           icon={LibraryIcon}
           title={
-            query || course || status
+            filtered
               ? "No matching lectures"
-              : "Your library starts here"
+              : course
+                ? "No lectures in this course yet"
+                : "Your library starts here"
           }
           action={
-            query || course || status ? (
+            filtered ? (
               <Button
                 onClick={() => {
                   setQuery("");
-                  setCourse("");
                   setStatus("");
+                  if (!onCourseChange && !index) setCourse("");
                 }}
               >
                 Clear filters
@@ -204,31 +242,34 @@ export function Library({
             ) : (
               <>
                 <Button
-                  icon={Plus}
+                  icon={FileAudio}
                   variant="primary"
                   onClick={() => onNew("upload", course)}
                 >
-                  New lecture
+                  Upload recording
                 </Button>
-                <a className="button" href="#/record">
-                  Record a lecture
-                </a>
+                <Button
+                  icon={Upload}
+                  onClick={() => onNew("transcript", course)}
+                >
+                  Import transcript
+                </Button>
               </>
             )
           }
         >
-          {query || course || status
-            ? "Try a different title, course, or status."
-            : "Add a recording or import a transcript to start your collection."}
+          {filtered
+            ? "Try a different title or status."
+            : "Record a lecture, upload a recording, or import a transcript."}
         </Empty>
       ) : null}
-      {!lectures.data?.length && !query && !course && !status && (
+      {!index && !lectures.data?.length && !filtered && !course && (
         <div className="library-footer">
-          <BookOpen size={18} />
+          <BookOpen size={18} aria-hidden="true" />
           <span>Keep related lectures together.</span>
           <a className="text-link" href="#/courses">
             Create a course
-            <ArrowUpRight size={14} />
+            <ArrowUpRight size={14} aria-hidden="true" />
           </a>
         </div>
       )}
@@ -244,6 +285,6 @@ export function Library({
           }}
         />
       )}
-    </>
+    </div>
   );
 }

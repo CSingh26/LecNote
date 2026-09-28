@@ -63,8 +63,14 @@ function CoursePanel({
     >
       <header className="course-materials-header">
         <Heading>Course materials</Heading>
-        <Button icon={FolderCog} onClick={() => setManaging(true)}>
-          Manage materials
+        <Button
+          icon={FolderCog}
+          className="quiet"
+          aria-label="Manage materials"
+          title="Upload, edit, or delete course materials"
+          onClick={() => setManaging(true)}
+        >
+          Manage
         </Button>
       </header>
       <label className="resource-search course-materials-search">
@@ -131,7 +137,9 @@ function CoursePanel({
       {selected && (
         <article className="material-preview" aria-live="polite">
           <header>
-            <Heading className="material-preview-title">{selected.name}</Heading>
+            <Heading className="material-preview-title">
+              {selected.name}
+            </Heading>
             <IconButton
               label="Close preview"
               icon={X}

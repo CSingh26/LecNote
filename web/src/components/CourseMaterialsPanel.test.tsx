@@ -143,9 +143,7 @@ it("renders Markdown resources safely without raw HTML", async () => {
   await user.click(
     await screen.findByRole("button", { name: "Preview Worked examples.md" }),
   );
-  expect(
-    screen.getByRole("heading", { name: "Kinetic energy" }),
-  ).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Kinetic energy" })).toBeVisible();
   expect(view.container.querySelector("script, img")).toBeNull();
 });
 
@@ -174,7 +172,9 @@ it("opens existing management and refreshes on close", async () => {
     energy,
     { ...energy, id: "source-4", name: "Work and power.pdf" },
   ];
-  await user.click(within(dialog).getByRole("button", { name: "Close dialog" }));
+  await user.click(
+    within(dialog).getByRole("button", { name: "Close dialog" }),
+  );
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(await screen.findByText("Work and power.pdf")).toBeVisible();
 });
