@@ -69,14 +69,14 @@ x_label:string,y_label:string,image:string|null}`.
 - PUT `/lectures/{id}/relevance` `{overrides:{segment_id:category}}` -> Lecture.
   Categories: course_material, class_logistics, off_topic, needs_review. Replaces the
   override map, preserves transcript/notes, and marks notes stale. Unknown IDs reject.
-- POST `/lectures/merge` `{title,lecture_ids:[ordered IDs],generate_notes?:false}` -> new Lecture (201).
+- POST `/lectures/merge` `{title,lecture_ids:[ordered IDs],generate_notes?:bool}` -> new Lecture (201).
   Synchronous local conversion in a thread pool. Two to twenty distinct same-class
   finalized sources; six hours and 4 GiB combined input maximum. Missing transcript
   parts or pending final passes queue local transcription. Source recording notes,
   readable same-class resource selections, and independent attachment copies are retained.
   Combined preparation is limited to 100,000 characters and 50 resources.
   `generate_notes:true` requires an API key and valid preparation, then queues
-  full processing for new notes. The default never requests OpenAI generation.
+  full processing for new notes. The default `false` never requests OpenAI generation.
   Originals are preserved. Busy inputs return 409; invalid preparation returns 422.
   Queue failure rolls back the destination and returns 503.
 - GET / HEAD `/lectures/{id}/media` -> range-enabled current media, including
@@ -105,8 +105,12 @@ x_label:string,y_label:string,image:string|null}`.
   `sequence` nonnegative integer, `offset` seconds -> `{accepted:true}`.
   Queue local transcription without blocking request. GET lecture includes segments.
 - POST `/live/{id}/finish` -> Lecture; combines WAV chunks in sequence order,
-  queues local transcription only after outstanding live chunks finish, even when
-  an OpenAI key exists. Prepared notes require a separate explicit process request.
+  skips queued interim transcription and requests a continuous full-recording
+  local pass, even when an OpenAI key exists. An already-running interim pass can
+  finish first. Interim text survives failure/cancellation; full passes are cached
+  and manual transcript edits remain authoritative. Changed transcript segments
+  invalidate stale relevance and overrides before further analysis.
+  Prepared notes require a separate explicit process request.
 
 ## Python boundaries
 

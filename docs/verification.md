@@ -1,5 +1,58 @@
 # Verification record
 
+## v1.0.2 isolated verification
+
+The maintenance branch was developed and verified in a separate checkout and
+temporary libraries. Existing servers, original source files, and the active
+library were not changed or restarted. The original local findings reports are
+annotated separately; no private library data or credentials are committed.
+
+- Python: 462 tests passed; frontend: 96 passed; Chromium: 13 passed.
+- Ruff, TypeScript/production build, and Git whitespace checks passed.
+- Regression coverage includes non-finite JSON requests, actionable CLI errors,
+  HEAD/range playback, glossary filtering, malformed routes, final full-pass
+  transcription/caching, manual-edit protection, cancellation, stale relevance
+  invalidation, and merge preparation/material retention.
+- Both real-API production UI smoke checks passed, including real FFmpeg merges,
+  queued new notes, context and
+  resource provenance, independent attachment downloads, merge ordering controls,
+  and lecture header bounds at 1440, 390, and 320 pixels. External inference is
+  deterministic in this smoke test; the API, repository, files, and queue are real.
+- Saved-preparation collapse preserves editor state, exposes unsaved changes, and
+  is covered by frontend interaction tests. Desktop/mobile screenshots were inspected.
+- A separate local Whisper smoke transcribed a real assembled WAV using the cached
+  base model and no network: 14.965 seconds of synthetic speech took 1.222 seconds;
+  the cached retry took 0.001 seconds. This is a small path/caching check, not a
+  representative long-recording performance benchmark or an accuracy guarantee.
+- Independent code review found two edge cases (stale relevance and unfinished
+  merge previews); both were fixed, regression-tested, and re-reviewed.
+
+No paid OpenAI call, physical microphone capture, native sharing picker,
+multi-hour workload, Safari/Firefox, or Windows runtime was exercised for this
+update. Existing math/diagram bundle-size and Starlette/httpx deprecation warnings
+remain. Version-tag publishing is unchanged; a branch push does not deploy an image.
+
+The Chromium suite manages its own isolated port 4175 server. For the production
+API checks, build the UI, run `tests/browser_server.py` against a fresh temporary
+library in a separate terminal, then run both smoke scripts:
+
+```sh
+LECNOTE_TEST_DATA=artifacts/v102-browser-library .venv/bin/python tests/browser_server.py
+# In another terminal:
+node tests/browser-smoke.mjs
+node tests/browser-merge-smoke.mjs
+```
+
+The default fixture port is 8871; use `LECNOTE_TEST_PORT` on the server and
+`LECNOTE_TEST_URL` on clients if that port is occupied. Do not target a live library.
+Merge screenshots are under ignored `artifacts/browser-merge/`.
+See [the release notes](releases/v1.0.2.md) for the fix checklist and recovery steps.
+
+The existing GitHub login cannot update workflow files without the `workflow`
+scope. The workflow is therefore unchanged: it does not automatically run for
+pushes to `v1.0.2`, and the new merge smoke currently runs locally. Its existing
+manual-dispatch path can verify the branch without modifying the workflow.
+
 ## Post-v1.0.1 uploads and container migration
 
 - 422 backend tests, 89 frontend tests, and 13 browser tests passed locally.

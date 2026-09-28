@@ -1,32 +1,26 @@
 # LecNote
 
-## v1.0.2 maintenance branch
+## v1.0.2 maintenance update
 
-Fixes are being verified individually on `v1.0.2`. Transcript editing now
-correctly explains that generated notes are preserved and marked potentially
-out of date. Personal notes are kept.
-CLI failures now report the API's actionable reason, including invalid fields,
-unsupported recordings, and empty uploads.
-Invalid API requests containing non-finite numbers return structured validation
-errors instead of server errors.
-Recording URLs support metadata-only HEAD requests as well as ranged playback.
-The glossary API accepts a case-insensitive text query for terms and definitions.
-Unknown or malformed workspace links show a recovery view with a link to the Library.
-Finishing a live recording transcribes the complete WAV with continuous audio
-context. Queued chunk transcriptions are skipped; completed full passes are cached.
-Interim text survives cancellation or failure, and manually edited transcripts
-remain authoritative. Older finalized live recordings refresh once on their next
-processing run if they have not been manually edited.
-When a full pass changes transcript segments, stale relevance classifications
-and overrides are cleared before analysis so they cannot be applied to different speech.
-Merges retain saved preparation, selected class resources, and independent copies
-of lecture attachments. With a configured key and prepared sources, **Merge and
-generate notes** queues new notes for the merged lecture; uncheck the generation
-option to merge only. Partial or unfinished transcripts trigger full local
-transcription. Oversized preparation is rejected without changing the originals.
-The study workspace uses restrained colors, clearer focus states, and compact
-responsive controls. Preparation can be collapsed on finished lectures; unsaved
-changes remain visible until saved or discarded.
+Version `1.0.2` is a compatible patch update on branch `v1.0.2`. It fixes recording
+merges, final transcription, API/CLI errors, and transcript-edit messaging, and
+refreshes the study workspace with compact, responsive controls.
+
+- **Merged recordings:** saved preparation, selected class resources, and copies
+  of lecture attachments carry over. **Merge and generate notes** explicitly
+  creates new notes when a key and preparation are available; merge-only remains
+  available without an OpenAI call.
+- **Final transcription:** a continuous pass over the complete WAV replaces
+  interim chunk text, addressing lost context at upload boundaries. Pending chunk
+  work is skipped and completed full passes are cached. Manual edits stay authoritative.
+- **Study workspace:** clearer focus states, restrained colors, mobile layouts,
+  and collapsible saved preparation. Unsaved changes remain visible.
+- **Reliability:** actionable CLI errors, JSON-safe validation, glossary text
+  filtering, media HEAD support, and a recoverable not-found view.
+
+See [the v1.0.2 release notes](docs/releases/v1.0.2.md) for recovery guidance and
+verification. The branch does not deploy itself or restart existing installations.
+No `v1.0.2` tag or container image is published by this maintenance work.
 
 ## v1.0.1 release
 
@@ -59,8 +53,8 @@ Class resources and lecture materials accept all file types, including code file
 up to 30 MiB each. Text/code, PDF, supported images, Word (`.docx`), PowerPoint
 (`.pptx`), and Excel (`.xlsx`) have local text extraction. Other files remain
 downloadable even when they cannot provide text for note generation. Files and
-macros are never executed. These additions are on `main` after the v1.0.1 tag;
-build the current source to include them.
+macros are never executed. These additions are included in the v1.0.2 source;
+build this branch to include them.
 
 ## Core features
 
@@ -126,7 +120,9 @@ the original library. The migration tool is available in the current `main` sour
 The image bundles the Web UI, Python server, FFmpeg, Tesseract OCR, and the
 local Whisper runtime. It stores the library and downloaded model weights in
 `/data`. To use the published image, bind the web port to your own computer and
-keep `/data` in a persistent volume:
+keep `/data` in a persistent volume. The example below uses the previously
+published `1.0.1` image, which does not include the v1.0.2 fixes. Build the
+v1.0.2 source until a new image is explicitly released:
 
 ```sh
 docker run --rm -p 127.0.0.1:8765:8765 -v lecnote-data:/data ghcr.io/csingh26/lecnote:1.0.1
@@ -153,7 +149,7 @@ a container on your laptop.
 | Materials | Local text/PDF extraction and image OCR; original files remain local |
 | Class resources | Searchable reusable materials and typed notes; explicit per-lecture selection |
 | Relevance | Full-lecture topic mapping, timestamped categories, manual overrides, separate logistics |
-| Recording merges | 2-20 same-class parts, ordered compact M4A, source provenance, originals preserved; transcript tail overruns up to two seconds are bounded to the audio in the merged copy (larger mismatches or segments wholly beyond the audio require corrected transcription) |
+| Recording merges | 2-20 same-class parts, ordered compact M4A, retained preparation/materials, explicit new-note generation, source provenance, originals preserved; transcript tail overruns up to two seconds are bounded to the audio in the merged copy (larger mismatches or segments wholly beyond the audio require corrected transcription) |
 | Compression | Eligible 6 hours after finalization, local idle worker, validated smaller replacement, opt-out |
 | Recovery | Completed transcription and note chunks cached; failed/cancelled/interrupted jobs can resume |
 | Exports | Markdown, standalone HTML, PDF, and JSON; includes personal annotations |
@@ -174,7 +170,11 @@ materials change. They are marked potentially out of date until successfully
 regenerated. Changing the Course selector on a lecture saves its assignment
 without deleting notes. New lectures inherit the class selected in the Library.
 
-Whisper transcribes audio chunks locally in the background. The recorder shows
+Whisper transcribes interim audio chunks locally in the background, then the full
+recording after Stop & save. Interim text remains available if the final pass
+fails or is cancelled; a retry reuses a completed full-pass cache. When the full
+pass changes segments, stale relevance classifications and overrides are cleared
+before analysis. The recorder shows
 the timer and waveform, not a live transcript; the transcript is available on the
 lecture page after recording. The browser must remain open while
 recording; saved chunks survive a backend restart. Microphone access begins only
@@ -279,10 +279,16 @@ npm --prefix web run build
 npm --prefix web run test:browser
 ```
 
+The Chromium suite starts and stops its own isolated Vite server on port 4175;
+do not start a development server for it. Set `LECNOTE_TEST_URL` only to target
+a separate test server intentionally.
+
 Tests use temporary local libraries and fake only external inference boundaries.
 They never make paid OpenAI calls. Real local Whisper and Apple Vision smoke
 checks were performed for v1.0.0. v1.0.1 adds synthetic FFmpeg and isolated API/UI
-checks, without accessing an active recording or physical microphone.
+checks, without accessing an active recording or physical microphone. v1.0.2
+adds merge/materials browser coverage and a real local Whisper full-pass/cache
+smoke check using synthetic speech.
 An actual OpenAI generation run still needs a user
 API key; no live OpenAI call is claimed as tested.
 See [the verification record](docs/verification.md) for test scope and browser checks.
