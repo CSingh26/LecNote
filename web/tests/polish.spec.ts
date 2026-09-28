@@ -60,11 +60,13 @@ for (const width of [1440, 390]) {
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect.soft(dialog).toHaveCSS("animation-duration", "0.18s");
-    const easing = await page
-      .locator(":root")
-      .evaluate((node) =>
-        getComputedStyle(node).getPropertyValue("--ease").trim(),
-      );
+    const easing = await page.locator(":root").evaluate((node) => {
+      // Normalize minified decimals through the browser's CSS parser.
+      const style = document.createElement("span").style;
+      style.animationTimingFunction =
+        getComputedStyle(node).getPropertyValue("--ease");
+      return style.animationTimingFunction;
+    });
     await expect.soft(dialog).toHaveCSS("animation-timing-function", easing);
     await page.screenshot({
       path: `test-results/polish/dialog-${width}.png`,
