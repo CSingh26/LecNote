@@ -52,6 +52,29 @@ def test_course_and_lecture_persist_and_search_cites_source(client):
     assert client.get("/api/courses").json()[0]["lecture_count"] == 1
 
 
+def test_glossary_filters_terms_and_definitions_within_course(client):
+    first = imported(client, "Mechanics").json()
+    second = imported(client, "Other class").json()
+    course = client.post("/api/courses", json={"name": "Physics"}).json()
+    repo = client.app.state.repo
+    repo.update("lectures", first["id"], {
+        "course_id": course["id"],
+        "notes": {"glossary": [
+            {"term": "Energy", "definition": "Capacity to do work"},
+            {"term": "Force", "definition": "Mass times acceleration"},
+        ]},
+    })
+    repo.update("lectures", second["id"], {
+        "notes": {"glossary": [{"term": "Energy", "definition": "Another definition"}]},
+    })
+    result = client.get("/api/glossary", params={"q": "  ENERGY ", "course_id": course["id"]})
+    assert [(term["term"], term["lecture_id"]) for term in result.json()] == [("Energy", first["id"])]
+    result = client.get("/api/glossary", params={"q": "ACCELERATION"})
+    assert [term["term"] for term in result.json()] == ["Force"]
+    assert client.get("/api/glossary?q=unmatched").json() == []
+    assert len(client.get("/api/glossary?q=").json()) == 3
+
+
 def test_invalid_transcript_and_missing_course_are_rejected(client):
     assert (
         client.post(

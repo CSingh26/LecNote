@@ -557,12 +557,17 @@ def create_app(settings: Settings | None = None, start_worker=True):
         return results[:100]
 
     @app.get("/api/glossary")
-    def glossary(course_id: str = ""):
+    def glossary(course_id: str = "", q: str = ""):
         result = []
+        needle = q.strip().casefold()
         for lecture in repo.list("lectures"):
             if course_id and lecture.get("course_id") != course_id:
                 continue
             for term in (lecture.get("notes") or {}).get("glossary", []):
+                if needle and not any(
+                    needle in term.get(field, "").casefold() for field in ("term", "definition")
+                ):
+                    continue
                 result.append({**term, "lecture_id": lecture["id"], "lecture_title": lecture["title"]})
         return sorted(result, key=lambda x: x["term"].casefold())
 

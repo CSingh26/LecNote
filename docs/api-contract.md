@@ -84,7 +84,8 @@ x_label:string,y_label:string,image:string|null}`.
 - GET `/lectures/{id}/export/{format}` format md/html/pdf/json -> download.
 - GET `/jobs` -> Job[] (recent 100).
 - GET `/search?q=&course_id=` -> `[{lecture_id,title,course_name,snippet,timestamp,kind}]`.
-- GET `/glossary?course_id=` -> `[{term,definition,lecture_id,lecture_title}]`.
+- GET `/glossary?course_id=&q=` -> `[{term,definition,lecture_id,lecture_title}]`.
+  The optional trimmed, case-insensitive query matches terms or definitions.
 - GET `/settings` -> `{model,whisper_model,chunk_minutes,parallel_requests,language,
   diarization,api_key_configured,hf_token_configured,input_price_per_million,
   output_price_per_million,capabilities:{whisper,ffmpeg,ocr,diarization}}`.
