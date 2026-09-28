@@ -1,0 +1,10 @@
+{
+  "optionId": "editions-original",
+  "comp": ".impeccable/mocks/course-editions-original.png",
+  "approved": true,
+  "source": "User selection on the three-layout comparison page",
+  "adjustments": [
+    "Smaller practical headings",
+    "Real library data instead of generated example file details"
+  ]
+}

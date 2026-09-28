@@ -1,5 +1,13 @@
 # LecNote
 
+## Redesign in development
+
+The `codex/impeccable-redesign` branch contains the approved **Course Editions**
+design and its implementation plan. The side-by-side layout keeps course
+navigation, lectures, and materials together, with a yellow-and-ink visual
+identity. Implementation and verification are pending; these mockups are not
+part of the released app. Existing servers and libraries remain unchanged.
+
 ## v1.0.2 maintenance update
 
 Version `1.0.2` is a compatible patch update available on `main` and tag `v1.0.2`.
