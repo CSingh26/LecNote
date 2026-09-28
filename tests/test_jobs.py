@@ -1,11 +1,45 @@
 import threading
 import time
+import wave
 
 import pytest
 
 from lecnote.config import Settings
 from lecnote.db import Repository
 from lecnote.jobs import JobManager
+
+
+def _live_recording(repo, settings, *, completed=True):
+    interim = {
+        "language": "en",
+        "duration": 2,
+        "segments": [{"id": 0, "start": 0, "end": 1, "text": "The first", "speaker": None}],
+    }
+    repo.create(
+        "lectures",
+        {"id": "lecture", "title": "Live", "status": "recording", "transcript": interim},
+    )
+    folder = settings.lecture_dir("lecture")
+    folder.mkdir(parents=True, exist_ok=True)
+    for sequence in range(2):
+        path = folder / f"{sequence:06d}.wav"
+        with wave.open(str(path), "wb") as audio:
+            audio.setnchannels(1)
+            audio.setsampwidth(2)
+            audio.setframerate(16_000)
+            audio.writeframes(b"\0\0" * 16_000)
+        repo.add_chunk(
+            "lecture",
+            sequence,
+            {
+                "sequence": sequence,
+                "path": str(path),
+                "offset": sequence,
+                "duration": 1,
+                "status": "completed" if completed else "queued",
+            },
+        )
+    return interim
 
 
 def test_restart_marks_unfinished_jobs_interrupted(tmp_path):
@@ -119,6 +153,152 @@ def test_live_duration_includes_small_whisper_timestamp_overruns(tmp_path, monke
         transcript = repo.get("lectures", "lecture")["transcript"]
         assert transcript["duration"] >= 1.02
         assert Transcript.model_validate(transcript).segments[0].text == "Boundary"
+    finally:
+        manager.close()
+
+
+def test_live_finish_transcribes_assembled_audio_and_skips_queued_chunks(tmp_path, monkeypatch):
+    from lecnote import pipeline
+
+    repo = Repository(tmp_path / "library.sqlite3")
+    settings = Settings(data_dir=tmp_path)
+    interim = _live_recording(repo, settings, completed=False)
+    calls = []
+    final = {
+        "language": "en",
+        "duration": 2,
+        "segments": [{"id": 0, "start": 0, "end": 2, "text": "The first complete thought", "speaker": None}],
+    }
+
+    def transcribe(path, *_args, **_kwargs):
+        calls.append(path)
+        return final
+
+    monkeypatch.setattr(pipeline, "transcribe", transcribe)
+    monkeypatch.setattr("lecnote.transcription.transcribe", transcribe)
+    manager = JobManager(repo, settings, start_worker=False)
+    try:
+        manager.queue_chunk("lecture", 0)
+        manager.queue_chunk("lecture", 1)
+        job = manager.enqueue("lecture", live_finish=True, transcribe_only=True)
+        manager._live("lecture", 0, 0)
+        manager._live("lecture", 1, 0)
+        assert repo.get("lectures", "lecture")["transcript"] == interim
+        manager._run(job["id"])
+        saved = repo.get("lectures", "lecture")
+        assert repo.get("jobs", job["id"])["status"] == "completed"
+        assert saved["transcript"] == final
+        assert saved["final_transcription_pending"] is False
+        assert [path.name for path in calls] == ["recording.wav"]
+
+        repeat = manager.enqueue("lecture", transcribe_only=True)
+        manager._run(repeat["id"])
+        assert repo.get("jobs", repeat["id"])["status"] == "completed"
+        assert [path.name for path in calls] == ["recording.wav"]
+    finally:
+        manager.close()
+
+
+def test_live_finish_failure_keeps_interim_and_retry_transcribes_once(tmp_path, monkeypatch):
+    from lecnote import pipeline
+
+    repo = Repository(tmp_path / "library.sqlite3")
+    settings = Settings(data_dir=tmp_path)
+    interim = _live_recording(repo, settings)
+    final = {
+        "language": "en",
+        "duration": 2,
+        "segments": [{"id": 0, "start": 0, "end": 2, "text": "The first complete thought", "speaker": None}],
+    }
+    calls = []
+
+    def transcribe(path, *_args, **_kwargs):
+        calls.append(path)
+        if len(calls) == 1:
+            raise RuntimeError("Local model unavailable")
+        return final
+
+    monkeypatch.setattr(pipeline, "transcribe", transcribe)
+    manager = JobManager(repo, settings, start_worker=False)
+    try:
+        job = manager.enqueue("lecture", live_finish=True, transcribe_only=True)
+        manager._run(job["id"])
+        saved = repo.get("lectures", "lecture")
+        assert repo.get("jobs", job["id"])["status"] == "failed"
+        assert saved["transcript"] == interim
+        assert saved["final_transcription_pending"] is True
+        assert all(chunk["status"] == "completed" for chunk in repo.list_chunks("lecture"))
+
+        retry = manager.enqueue("lecture", transcribe_only=True)
+        manager._run(retry["id"])
+        saved = repo.get("lectures", "lecture")
+        assert repo.get("jobs", retry["id"])["status"] == "completed"
+        assert saved["transcript"] == final
+        assert saved["final_transcription_pending"] is False
+        assert [path.name for path in calls] == ["recording.wav", "recording.wav"]
+    finally:
+        manager.close()
+
+
+def test_live_finish_cancel_keeps_interim_for_retry(tmp_path, monkeypatch):
+    from lecnote import pipeline
+
+    repo = Repository(tmp_path / "library.sqlite3")
+    settings = Settings(data_dir=tmp_path)
+    interim = _live_recording(repo, settings)
+    manager = JobManager(repo, settings, start_worker=False)
+
+    def transcribe(_path, *_args, progress, **_kwargs):
+        manager.cancel("lecture")
+        progress(50, "Transcribing")
+        pytest.fail("Cancellation should stop the full pass")
+
+    monkeypatch.setattr(pipeline, "transcribe", transcribe)
+    try:
+        job = manager.enqueue("lecture", live_finish=True, transcribe_only=True)
+        manager._run(job["id"])
+        saved = repo.get("lectures", "lecture")
+        assert repo.get("jobs", job["id"])["status"] == "cancelled"
+        assert saved["transcript"] == interim
+        assert saved["final_transcription_pending"] is True
+        assert all(chunk["status"] == "completed" for chunk in repo.list_chunks("lecture"))
+    finally:
+        manager.close()
+
+
+def test_legacy_finished_live_recording_gets_one_full_transcription(tmp_path, monkeypatch):
+    from lecnote import pipeline
+    from lecnote.enrichment import assemble_wav
+
+    repo = Repository(tmp_path / "library.sqlite3")
+    settings = Settings(data_dir=tmp_path)
+    _live_recording(repo, settings)
+    media = settings.lecture_dir("lecture") / "recording.wav"
+    assemble_wav([repo_chunk["path"] for repo_chunk in repo.list_chunks("lecture")], media)
+    repo.update(
+        "lectures",
+        "lecture",
+        {"status": "draft", "media_path": str(media), "finalized_at": "2026-09-28T00:00:00+00:00"},
+    )
+    final = {
+        "language": "en",
+        "duration": 2,
+        "segments": [{"id": 0, "start": 0, "end": 2, "text": "The first complete thought", "speaker": None}],
+    }
+    calls = []
+
+    def transcribe(path, *_args, **_kwargs):
+        calls.append(path)
+        return final
+
+    monkeypatch.setattr(pipeline, "transcribe", transcribe)
+    manager = JobManager(repo, settings, start_worker=False)
+    try:
+        job = manager.enqueue("lecture", transcribe_only=True)
+        manager._run(job["id"])
+        assert repo.get("jobs", job["id"])["status"] == "completed"
+        assert repo.get("lectures", "lecture")["transcript"] == final
+        assert [path.name for path in calls] == ["recording.wav"]
     finally:
         manager.close()
 

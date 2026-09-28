@@ -12,6 +12,11 @@ errors instead of server errors.
 Recording URLs support metadata-only HEAD requests as well as ranged playback.
 The glossary API accepts a case-insensitive text query for terms and definitions.
 Unknown or malformed workspace links show a recovery view with a link to the Library.
+Finishing a live recording transcribes the complete WAV with continuous audio
+context. Queued chunk transcriptions are skipped; completed full passes are cached.
+Interim text survives cancellation or failure, and manually edited transcripts
+remain authoritative. Older finalized live recordings refresh once on their next
+processing run if they have not been manually edited.
 
 ## v1.0.1 release
 

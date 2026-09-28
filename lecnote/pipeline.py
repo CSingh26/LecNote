@@ -186,7 +186,12 @@ def run_pipeline(lecture: dict, settings, progress, is_cancelled, checkpoint=Non
         }
     )
     transcription_path = root / "cache" / "transcripts" / f"{transcription_key}.json"
-    if lecture.get("transcript") is not None:
+    needs_final_transcription = lecture.get("final_transcription_pending") and not lecture.get(
+        "transcript_edited"
+    )
+    if needs_final_transcription and (media is None or not media.is_file()):
+        raise RuntimeError("Final recording not found; restore the audio before completing transcription")
+    if lecture.get("transcript") is not None and not needs_final_transcription:
         transcript = Transcript.model_validate(lecture["transcript"])
     else:
         cached = _read_stage(transcription_path, transcription_key, Transcript)

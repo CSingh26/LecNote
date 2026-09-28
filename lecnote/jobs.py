@@ -86,7 +86,11 @@ class JobManager:
                     "transcribe_only": transcribe_only,
                 },
             )
-            self.repo.update("lectures", lecture_id, {"status": "queued", "error": None})
+            values = {"status": "queued", "error": None}
+            if live_finish:
+                lecture = self.repo.get("lectures", lecture_id)
+                values["live_epoch"] = lecture.get("live_epoch", 0) + 1
+            self.repo.update("lectures", lecture_id, values)
             self.work.put(("pipeline", job["id"]))
             return job
 
@@ -210,16 +214,23 @@ class JobManager:
                     "media_path": str(destination),
                     "source_name": "recording.wav",
                     "media_type": "audio/wav",
+                    "final_transcription_pending": not lecture.get("transcript_edited", False),
                 }
-                if not lecture.get("transcript_edited") and any(
-                    chunk.get("status") != "completed" for chunk in chunks
-                ):
-                    values["transcript"] = None
                 lecture = self.repo.update("lectures", lecture_id, values)
                 from .media import MediaService
 
                 with self.lock:
                     lecture = MediaService(self.repo, settings).mark_finalized(lecture_id)
+            if (
+                "final_transcription_pending" not in lecture
+                and not lecture.get("transcript_edited")
+                and lecture.get("finalized_at")
+                and lecture.get("media_path")
+                and self.repo.list_chunks(lecture_id)
+            ):
+                lecture = self.repo.update(
+                    "lectures", lecture_id, {"final_transcription_pending": True}
+                )
             course = self.repo.get("courses", lecture.get("course_id")) or {}
             if not job.get("transcribe_only"):
                 from .resources import generation_inputs
@@ -241,6 +252,7 @@ class JobManager:
                     if "transcript" in values:
                         changes.update(transcript_provenance(current, values["transcript"]))
                         changes["duration"] = values["transcript"]["duration"]
+                        changes["final_transcription_pending"] = False
                         if current.get("transcript") != values["transcript"]:
                             changes.update(relevance=None, notes_stale=bool(current.get("notes")))
                     self.repo.update("lectures", lecture_id, changes)
@@ -261,6 +273,7 @@ class JobManager:
                     {
                         "transcript": result["transcript"],
                         **transcript_provenance(self.repo.get("lectures", lecture_id), result["transcript"]),
+                        "final_transcription_pending": False,
                         "notes": saved_notes,
                         "resource_provenance": lecture.get("resource_provenance", []),
                         "relevance": result.get("relevance", lecture.get("relevance")),

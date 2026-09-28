@@ -258,6 +258,48 @@ def test_transcription_cache_keys_source_bytes_and_model(tmp_path, monkeypatch):
     assert len(calls) == 3
 
 
+def test_pending_final_transcription_uses_full_audio_cache_on_resume(tmp_path, monkeypatch):
+    from lecnote import pipeline
+    from lecnote.schemas import PipelineCancelled
+
+    lecture, settings = make_lecture(1), make_settings(tmp_path)
+    interim = lecture["transcript"]
+    final = copy.deepcopy(interim)
+    final["segments"][0]["text"] = "Complete words across boundary"
+    media = tmp_path / "recording.wav"
+    media.write_bytes(b"assembled audio")
+    lecture.update(media_path=str(media), final_transcription_pending=True, transcribe_only=True)
+    calls = []
+
+    def transcribe(path, *_args, **_kwargs):
+        calls.append(path)
+        return final
+
+    monkeypatch.setattr(pipeline, "transcribe", transcribe)
+    def cancelled_checkpoint(values):
+        assert values["transcript"] == final
+        raise PipelineCancelled("Cancelled before saving the lecture transcript")
+
+    with pytest.raises(PipelineCancelled):
+        pipeline.run_pipeline(
+            lecture, settings, lambda *args: None, lambda: False, checkpoint=cancelled_checkpoint
+        )
+    assert lecture["transcript"] == interim
+    second = run(lecture, settings)
+    assert second["transcript"] == final
+    assert len(calls) == 1
+
+
+def test_edited_transcript_overrides_pending_final_audio(tmp_path, monkeypatch):
+    lecture, settings = make_lecture(1), make_settings(tmp_path)
+    media = tmp_path / "recording.wav"
+    media.write_bytes(b"assembled audio")
+    lecture.update(
+        media_path=str(media), final_transcription_pending=True, transcript_edited=True, transcribe_only=True
+    )
+    assert run(lecture, settings)["transcript"] == lecture["transcript"]
+
+
 def test_empty_or_oversized_transcript_fails_before_provider(tmp_path, monkeypatch):
     calls = provider(monkeypatch)
     with pytest.raises(ValueError, match="speech|empty|segment"):
