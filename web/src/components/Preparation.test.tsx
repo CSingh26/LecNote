@@ -85,6 +85,39 @@ const pageProps = {
   seekTo: null,
 };
 
+it("keeps saved preparation compact for finished notes without hiding unsaved edits", async () => {
+  lecture = {
+    ...base,
+    context: "Saved focus",
+    preparation_ready: true,
+    notes: {
+      title: "Saved notes",
+      overview: "Overview",
+      takeaways: [],
+      glossary: [],
+      review_questions: [],
+      chunks: [],
+      usage: { input_tokens: 0, output_tokens: 0 },
+      model: "fixture",
+    },
+  };
+  const user = userEvent.setup();
+  render(<Preparation lecture={lecture} {...callbacks()} />);
+  expect(screen.getByLabelText("Recording note")).not.toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Edit preparation" }));
+  await user.type(screen.getByLabelText("Recording note"), " with corrections");
+  expect(
+    screen.getByRole("button", { name: "Hide preparation" }),
+  ).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Save preparation" }));
+  await user.click(screen.getByRole("button", { name: "Hide preparation" }));
+  expect(screen.getByLabelText("Recording note")).not.toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Edit preparation" }));
+  expect(screen.getByLabelText("Recording note")).toHaveValue(
+    "Saved focus with corrections",
+  );
+});
+
 it("prevents download-only arbitrary files from being selected for generation", async () => {
   lecture = { ...base, course_id: "math" };
   resources = [

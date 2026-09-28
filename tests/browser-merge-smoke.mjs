@@ -92,6 +92,11 @@ try {
       await page.waitForFunction(() => document.querySelector(".sidebar").getBoundingClientRect().right <= 0);
     await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    assert.equal(await page.locator(".lecture-header").evaluate((element) =>
+      [...element.children].every((child) =>
+        child.getBoundingClientRect().right <= element.getBoundingClientRect().right + 1
+      )
+    ), true, "Lecture controls must stay within the content width");
     await page.screenshot({ path: `${output}/notes-${width}.png`, fullPage: true, animations: "disabled" });
   }
   await page.getByRole("tab", { name: /^Materials/ }).click();

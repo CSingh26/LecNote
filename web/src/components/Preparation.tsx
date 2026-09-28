@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { RotateCcw, Save } from "lucide-react";
+import { ChevronUp, Pencil, RotateCcw, Save } from "lucide-react";
 import type { Lecture, Resource } from "../types";
 import { api, json, lecturePath, message, useResource } from "../lib/api";
 import { Button, ErrorNotice, Field, Loading } from "./ui";
@@ -38,6 +38,7 @@ export function Preparation({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState(!lecture.notes);
   const incoming = JSON.stringify(snapshot(lecture));
   const lastIncoming = useRef(incoming);
   const resources = useResource<Resource[]>(
@@ -62,6 +63,8 @@ export function Preparation({
     !saving &&
     !invalidSelection &&
     !checkingSelection;
+  const showing =
+    expanded || dirty || !lecture.notes || !saved.preparation_ready;
 
   useEffect(() => {
     if (lastIncoming.current === incoming) return;
@@ -129,18 +132,31 @@ export function Preparation({
       className="lecture-preparation"
       aria-labelledby="preparation-title"
     >
-      <form onSubmit={save}>
+      <div className="resource-toolbar">
+        <h2 id="preparation-title">Preparation</h2>
+        <div className="actions">
+          <span className="muted small" role="status">
+            {dirty
+              ? "Unsaved preparation"
+              : ready
+                ? "Preparation saved"
+                : "Preparation required"}
+          </span>
+          {lecture.notes && saved.preparation_ready && (
+            <Button
+              icon={showing ? ChevronUp : Pencil}
+              aria-expanded={showing}
+              aria-controls="preparation-fields"
+              disabled={dirty || saving}
+              onClick={() => setExpanded(!showing)}
+            >
+              {showing ? "Hide preparation" : "Edit preparation"}
+            </Button>
+          )}
+        </div>
+      </div>
+      <form id="preparation-fields" onSubmit={save} hidden={!showing}>
         <fieldset disabled={disabled || saving}>
-          <div className="resource-toolbar">
-            <h2 id="preparation-title">Preparation</h2>
-            <span className="muted small" role="status">
-              {dirty
-                ? "Unsaved preparation"
-                : ready
-                  ? "Preparation saved"
-                  : "Preparation required"}
-            </span>
-          </div>
           <Field label="Recording note">
             <textarea
               rows={3}

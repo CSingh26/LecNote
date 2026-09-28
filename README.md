@@ -24,6 +24,9 @@ of lecture attachments. With a configured key and prepared sources, **Merge and
 generate notes** queues new notes for the merged lecture; uncheck the generation
 option to merge only. Partial or unfinished transcripts trigger full local
 transcription. Oversized preparation is rejected without changing the originals.
+The study workspace uses restrained colors, clearer focus states, and compact
+responsive controls. Preparation can be collapsed on finished lectures; unsaved
+changes remain visible until saved or discarded.
 
 ## v1.0.1 release
 

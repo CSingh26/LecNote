@@ -4,7 +4,7 @@
 .relevance-topic-map {
   padding: 18px 20px;
   margin-bottom: 18px;
-  background: var(--gradient-soft);
+  background: var(--surface-2);
   border-radius: var(--radius);
   overflow-wrap: anywhere;
 }
@@ -21,8 +21,8 @@
 .relevance-filters button {
   color: var(--muted);
   background: var(--surface);
-  border: 1.5px solid var(--line-strong);
-  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
   padding: 6px 14px;
   font-size: 13px;
   font-weight: 600;
@@ -34,13 +34,13 @@
 }
 .relevance-filters button:hover {
   color: var(--primary-dark);
-  border-color: #c9bcff;
+  border-color: var(--primary);
 }
 .relevance-filters button[aria-pressed="true"] {
-  background: var(--gradient);
-  border-color: transparent;
+  background: var(--primary);
+  border-color: var(--primary);
   color: #fff;
-  box-shadow: var(--shadow-glow);
+  box-shadow: none;
 }
 .relevance-filters button:focus-visible {
   outline: 2.5px solid var(--primary);
