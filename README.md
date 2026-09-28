@@ -110,6 +110,14 @@ optional speaker-detection dependencies.
 For frontend development, run the Python server on port 8765 and
 `npm --prefix web run dev` in another terminal. Vite forwards `/api` to the local
 server. The production build is served directly by Python without Node running.
+Use the backend-served UI on port 8765 for real classes so a development-server
+shutdown does not interrupt uploads. If an existing recording tab has pending
+audio, **do not refresh it or restart Vite**. Download the retained WAV first and
+follow [recording recovery](docs/recording-recovery.md). The current `main` source
+includes a local API-only recovery bridge that does not trigger Vite's reload.
+Libraries are stored outside Git history: changing branches does not merge or
+move a database. Keep the existing backend and its persistent data directory;
+never start a second worker on that same library.
 
 ### Container image
 
