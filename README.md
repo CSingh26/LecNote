@@ -2,8 +2,8 @@
 
 ## v1.0.2 maintenance update
 
-Version `1.0.2` is a compatible patch update on branch `v1.0.2`. It fixes recording
-merges, final transcription, API/CLI errors, and transcript-edit messaging, and
+Version `1.0.2` is a compatible patch update available on `main` and tag `v1.0.2`.
+It fixes recording merges, final transcription, API/CLI errors, and transcript-edit messaging, and
 refreshes the study workspace with compact, responsive controls.
 
 - **Merged recordings:** saved preparation, selected class resources, and copies
@@ -18,9 +18,9 @@ refreshes the study workspace with compact, responsive controls.
 - **Reliability:** actionable CLI errors, JSON-safe validation, glossary text
   filtering, media HEAD support, and a recoverable not-found view.
 
-See [the v1.0.2 release notes](docs/releases/v1.0.2.md) for recovery guidance and
-verification. The branch does not deploy itself or restart existing installations.
-No `v1.0.2` tag or container image is published by this maintenance work.
+See [the GitHub release](https://github.com/CSingh26/LecNote/releases/tag/v1.0.2)
+and [the v1.0.2 release notes](docs/releases/v1.0.2.md) for recovery guidance and
+verification. Publishing a release does not update or restart existing installations.
 
 ## v1.0.1 release
 
@@ -120,12 +120,13 @@ the original library. The migration tool is available in the current `main` sour
 The image bundles the Web UI, Python server, FFmpeg, Tesseract OCR, and the
 local Whisper runtime. It stores the library and downloaded model weights in
 `/data`. To use the published image, bind the web port to your own computer and
-keep `/data` in a persistent volume. The example below uses the previously
-published `1.0.1` image, which does not include the v1.0.2 fixes. Build the
-v1.0.2 source until a new image is explicitly released:
+keep `/data` in a persistent volume. The tagged release workflow publishes the
+`1.0.2` image after its checks pass; check the
+[release workflow](https://github.com/CSingh26/LecNote/actions/workflows/release.yml)
+has completed before pulling a newly announced version:
 
 ```sh
-docker run --rm -p 127.0.0.1:8765:8765 -v lecnote-data:/data ghcr.io/csingh26/lecnote:1.0.1
+docker run --rm -p 127.0.0.1:8765:8765 -v lecnote-data:/data ghcr.io/csingh26/lecnote:1.0.2
 ```
 
 Open [LecNote](http://127.0.0.1:8765) and add your OpenAI API key in Settings
