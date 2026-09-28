@@ -20,22 +20,23 @@ OWN-WORLD: Solar-yellow course edge, white study sheet, dark ink, cherry recordi
 action, mineral-blue source cues. Clean condensed headings, readable body type,
 typed metadata, square selection controls, and fine continuous rules.
 
-STORY: Pick a course, scan lectures, find source files, then open the lecture to
-study. Secondary commands stay available through contextual controls.
+STORY: Pick a course and lecture, then study its open notes alongside source
+materials without losing the lecture index. Secondary commands stay contextual.
 
-FIRST VIEWPORT: A compact top navigation and recording action; a yellow course
-index at left; the lecture index occupies roughly two-thirds of the remaining
-sheet, with an unframed materials tray at right. Page headings cap at 32px.
+FIRST VIEWPORT: Compact top navigation and recording action; a yellow course
+rail at left; a compact lecture index next; the selected lecture's title, player,
+and view tabs above an open reading sheet with notes and course materials beside
+each other. Page headings cap at 32px. Closing the reader restores the index.
 
 FORM: Course Editions, the user-selected copy-shop publication challenger to
-grounded candidate 7, Collection Browser. Seed 387ada07. User approved the
-original side-by-side composition after comparing three layouts.
+grounded candidate 7, Collection Browser. Seed 387ada07. User approved the third
+composition, Reading workspace, in chat, superseding the initial first selection.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
 ## Approved Reference
 
-Approved comp: `.impeccable/mocks/course-editions-original.png`.
+Approved comp: `.impeccable/mocks/course-editions-reader.png`.
 Approval record: `.impeccable/research/composition-choice.json`.
 The comparison explicitly approved smaller practical headings and real library
 data. File sizes and extra preview prose in the generated image are not product
@@ -49,20 +50,26 @@ facts. Demo fixtures live only in tests. Core UI stays semantic, not rasterized.
   a long course list must scroll rather than silently disappear after eight.
 - An Add lecture menu contains recording upload and transcript import. Merge
   remains a contextual library command with its existing ordered dialog.
-- The library material tray shows only its selected course's resources, with
-  source preview and a direct way to manage/upload. No unbounded per-course
-  network fan-out when viewing the whole library.
+- Selecting a lecture opens its reading workspace while retaining the lecture
+  index and its selection. URLs remain linkable; back/close restores the course
+  index. Switching or closing honors the existing unsaved-edits confirmation.
+- The open reader's material tray shows only that lecture's course resources,
+  with source preview and a direct way to manage/upload. No unbounded per-course
+  network fan-out when viewing the whole library. Never fabricate an open lecture
+  when the library is empty or nothing is selected.
 - A dedicated Materials destination gives course filtering, search, source
   preview, and access to existing resource management. Lecture attachments stay
   explicitly distinguished from reusable course resources.
-- Lecture reading gets the main column; preparation, metadata, and processing
-  settings move to a compact secondary region without dropping dirty-state,
-  preparation-readiness, busy, or explicit-generation checks.
+- Lecture reading and source materials share the main sheet beside the retained
+  lecture index. Preparation and processing settings stay in contextual controls,
+  not a fifth permanent column. Preserve all dirty-state, preparation-readiness,
+  busy, and explicit-generation checks.
 - Motion: 160ms course-selection marker changes, 180ms material-preview and
   dialog reveals, and short content transitions. Content is visible by default,
   stable in size, and immediate with reduced motion.
-- At narrow widths the course index becomes a labeled drawer and materials an
-  accessible disclosure. Reading remains full-width; no overlapping fixed panels.
+- At narrow widths the course index becomes a labeled drawer, the lecture index
+  becomes a browse view with an explicit return from reading, and materials an
+  accessible disclosure. Reading stays full-width without overlapping panels.
 
 ## Verification
 

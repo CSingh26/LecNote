@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Redesign the whole LecNote workspace around the approved side-by-side Course Editions composition, improving navigation, materials discovery, control density, and purposeful motion without losing existing workflows.
+**Goal:** Redesign the whole LecNote workspace around the approved Reading workspace (third Course Editions composition): retain a compact lecture index beside open notes and course materials, improving navigation, discovery, control density, and purposeful motion without losing existing workflows.
 
-**Architecture:** Keep React, the hash router, existing resource hooks, recorder lifetime, and FastAPI contracts. Add a reusable course-materials panel and dedicated Materials route; reshape the shell, library, and lecture layout around these existing behaviors. Use shared design tokens and native CSS motion rather than a second component framework.
+**Architecture:** Keep React, the hash router, existing resource hooks, recorder lifetime, and FastAPI contracts. Add a reusable course-materials panel and dedicated Materials route; compose the existing lecture view beside a compact library index on lecture routes. Use shared design tokens and native CSS motion rather than a second component framework.
 
 **Tech Stack:** React 19, TypeScript, Vite 6, lucide-react, existing Markdown/KaTeX components, Vitest/Testing Library, Playwright, existing Python test suite.
 
-**Spec:** `.impeccable/surfaces/web-src-app-tsx.md`, `PRODUCT.md`, and approved `.impeccable/mocks/course-editions-original.png` with its `.png.json` approval record.
+**Spec:** `.impeccable/surfaces/web-src-app-tsx.md`, `PRODUCT.md`, and approved `.impeccable/mocks/course-editions-reader.png` with its `.png.json` approval record. The user explicitly replaced the first layout choice with this third layout in chat.
 
 ## Global Constraints
 
@@ -57,15 +57,18 @@ expect(screen.getByRole("link", { name: "Open original" }))
 - [ ] Run `npm --prefix web test` and `npm --prefix web run build`. Update README to distinguish implemented components from the still-pending routed redesign.
 - [ ] Commit and push the verified materials milestone.
 
-### Task 2: Shell and Side-by-Side Library
+### Task 2: Shell and Reading Workspace
 
-**Files:** Modify `web/src/App.tsx`, `web/src/App.test.tsx`, `web/src/pages/Library.tsx`, `web/src/pages/Library.milestone5.test.tsx`, `web/src/components/ui.tsx`, and `web/src/styles.css`. Create `web/src/components/ActionMenu.tsx`, `web/src/components/ActionMenu.test.tsx`, `web/tests/redesign.spec.ts`, and synthetic fixtures under `web/tests/fixtures/`.
+**Files:** Modify `web/src/App.tsx`, `web/src/App.test.tsx`, `web/src/pages/Library.tsx`, `web/src/pages/Library.milestone5.test.tsx`, `web/src/pages/Lecture.tsx`, `web/src/components/Lecture.test.tsx`, `web/src/components/ui.tsx`, and `web/src/styles.css`. Create `web/src/components/ActionMenu.tsx`, `web/src/components/ActionMenu.test.tsx`, `web/tests/redesign.spec.ts`, and synthetic fixtures under `web/tests/fixtures/`.
 
 **Interfaces:**
 - Consume task 1's `CourseMaterialsPanel` and `MaterialsPage`.
 - Produce `ActionMenu({label, items}: {label: string; items: Array<{id: string; label: string; icon: LucideIcon; onSelect: () => void; disabled?: boolean}>})`.
 - Add `onCourseChange?: (courseId: string) => void` to `Library`; keep existing `onNew(mode, courseId)` and merge callbacks. In App, course selection updates the hash so the left index, library filter, and Materials link agree.
+- Add `layout?: "full" | "index"` and `selectedLectureId?: string` to `Library`. The index variant retains filters, lecture rows, and contextual add/merge actions without duplicating the reader's materials panel.
+- Add `onCourseResolved?: (courseId: string | null) => void` to `Lecture`, reporting the loaded or reassigned lecture's actual course. App uses it to synchronize the retained index on direct lecture links and assignments; clear stale context when the lecture ID changes. Preserve existing Lecture callbacks and dirty-state guards.
 - Preserve `#/record` as a valid route even though recording becomes a header action. Add `#/materials?course=<encoded-id>` to known routes; retain the not-found view.
+- Preserve `#/lecture/<id>` deep links and timestamp query parameters. Render the lecture route as the compact index plus the existing Lecture reader; its close action returns to the same course library. No auto-generated or fabricated selection for empty libraries.
 
 - [ ] Measure the approved comp using `comp-spec --grid`, per-element regions, `font-match --measure`, and `font-match --rank`; record the approved 32px heading correction. Follow the spec and plates gates before writing visual page code. No font selection from memory and no UI rasterization.
 - [ ] Add failing tests for the Materials destination, ten reachable courses, active course selection, Add lecture menu imports with selected course, Escape/focus restoration, and the existing merge flow reached through its contextual command. Key assertions:
@@ -79,11 +82,12 @@ expect(screen.getByLabelText("Course")).toHaveValue("phy101");
 ```
 
 - [ ] Run the focused Vitest tests and verify the intended failures before implementation.
-- [ ] Implement the compact top navigation, persistent recording action, yellow course rail, explicit All courses state, contextual Add lecture/import/merge actions, and library/materials columns. Keep every course reachable. Move shared tokens into the existing stylesheet rather than stacking a second theme on old overrides.
+- [ ] Add and run failing route tests: `keeps the lecture index visible beside selected notes`, `resolves the correct course for a direct lecture link`, `close reader returns to the selected course`, and `rejecting unsaved edits preserves the selected lecture`. Assert index and notes are both visible on desktop, the active lecture matches the URL, and accepting close restores the course-filtered library.
+- [ ] Implement compact top navigation, persistent recording action, yellow course rail, explicit All courses state, and contextual Add lecture/import/merge actions. Compose a compact lecture index beside the open Lecture title/player/tabs, notes, and materials. Keep every course reachable. Move shared tokens into the existing stylesheet rather than stacking a second theme on old overrides.
 - [ ] Use semantic rows and real selection only where it has a working purpose. Keep duration/date/status aligned, long names wrapping, and all-course labels truthful. No ornamental checkboxes or overflow buttons with no behavior.
 - [ ] Implement the approved first viewport with isolated demo fixtures and complete the hero gate, then apply its shared system to the remaining library states. All generated image text is replaced by semantic content.
 - [ ] Run `npm --prefix web test`, `npm --prefix web run build`, and the navigation/browser tests on a new strict-port server. Verify 320px/390px/1280px/1440px geometry without extra screenshot-polish loops.
-- [ ] Update README status, commit, and push the shell/library milestone.
+- [ ] Update README status, commit, and push the shell/reading-workspace milestone.
 
 ### Task 3: Reading and Remaining Screens
 
@@ -93,7 +97,7 @@ expect(screen.getByLabelText("Course")).toHaveValue("phy101");
 
 - [ ] Extend regressions for notes visible alongside preparation, dirty transcript navigation rejection, dirty preparation blocking generation, keyboard tab switching, unavailable-key behavior, failed processing retry, and recording survival across Library/Materials/Record navigation. Assert no paid-generation or capture request on navigation alone.
 - [ ] Run the focused Lecture/Preparation/Record tests to confirm each new behavior test fails as intended; unchanged safeguards may remain green characterization tests.
-- [ ] Reorganize Lecture into a compact title/player, reading area, and secondary preparation/processing context. Keep full export, deletion confirmation, transcript, relevance, attachments, and review actions; display course resources separately from lecture attachments. Maintain disabled/readiness conditions verbatim while moving their controls.
+- [ ] Complete the Lecture reader within task 2's retained index layout: compact title/player/tabs, open notes beside course resources, and contextual preparation/processing controls instead of an additional permanent column. Keep export, deletion confirmation, transcript, relevance, attachments, and review actions; distinguish course resources from attachments. Maintain disabled/readiness conditions verbatim while moving controls.
 - [ ] Apply the approved shell/type/control system to Record, Courses, Jobs, Search, Settings, modals, and error/empty/loading states. Preserve native recording-source selection, storage preferences, secret handling, and retry/cancel actions. Remove redundant decorative eyebrows, not meaningful validation or error content.
 - [ ] Run the full frontend suite/build and relevant browser recording/preparation/merge flows. Update README, commit, and push the all-screens milestone.
 
@@ -105,7 +109,7 @@ expect(screen.getByLabelText("Course")).toHaveValue("phy101");
 
 - [ ] Write browser checks for reduced-motion visibility, menu/drawer focus and Escape, long titles, resource errors, dense courses, and no horizontal overflow. Assert representative animation durations become zero/near-zero under reduced motion and controls remain operable.
 - [ ] Run the checks before motion/responsive implementation and confirm the target failures.
-- [ ] Implement purposeful transitions and narrow-screen course/material disclosures. Keep stable table/control dimensions, native scrolling, and full-width reading without overlapping panels.
+- [ ] Implement purposeful transitions and narrow-screen course/material disclosures. At narrow widths, switch between lecture browsing and full-width reading with an explicit return action; do not squeeze all four desktop regions onto mobile. Keep stable controls, native scrolling, selection, unsaved-edit protection, and full-width reading without overlap.
 - [ ] Complete Impeccable sections/motion/responsive gates. Capture all required desktop/mobile routes in one batched screenshot round, inspect every capture, fix as one batch, and use at most one confirmation round. Run the single mechanical detector, then the fresh shipped finish reviewer with approved comp, specs, diffs, and all viewport evidence.
 - [ ] Address only the reviewer's material findings within its bounded verdict rounds. Have the shipped documenter produce token-bearing DESIGN.md and design.json from the finished app.
 - [ ] Run full backend tests, frontend tests/build, browser tests, and repository lint/format checks. Confirm original server identities/ports are unchanged and only the isolated preview was started. Report any unverified real-device or paid-AI behavior explicitly.

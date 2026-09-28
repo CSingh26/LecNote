@@ -60,9 +60,11 @@ Keep the name LecNote and the product's lecture-study purpose. The user wants a
 recognizable personality and animation throughout the experience. The user selected
 Course Editions: solar-yellow course navigation, near-white study surfaces, dark
 ink, cherry recording actions, mineral-blue source cues, clean condensed headings,
-and typed labels inspired by student publications. The approved Side-by-side
-edition places courses on the left, lectures in the center, and materials on
-the right. Practical smaller headings and real library data replace mockup
+and typed labels inspired by student publications. The approved Reading workspace
+(third layout) keeps courses at the left, a compact lecture index beside them,
+and the selected lecture's player, notes, and course materials open together.
+This supersedes the initial Side-by-side edition selection. Practical smaller
+headings and real library data replace mockup
 artifacts. The publication identity must remain readable and task-focused.
 
 ## Evidence on Hand

@@ -3,9 +3,10 @@
 ## Redesign in development
 
 The `codex/impeccable-redesign` branch contains the approved **Course Editions**
-design and its implementation plan. The side-by-side layout keeps course
-navigation, lectures, and materials together, with a yellow-and-ink visual
-identity. Implementation and verification are pending; these mockups are not
+design and its implementation plan. The approved **Reading workspace** layout
+keeps a course rail and compact lecture index beside the selected lecture's
+player, notes, and materials, with a yellow-and-ink visual identity.
+Implementation and verification are pending; these mockups are not
 part of the released app. Existing servers and libraries remain unchanged.
 
 ## v1.0.2 maintenance update
