@@ -375,84 +375,89 @@ export function Lecture({
           <span>Imported transcript · No source recording</span>
         </div>
       )}
-      <StorageStatus lecture={lecture} />
-      <Preparation
-        key={lecture.id}
-        lecture={lecture}
-        disabled={active || Boolean(busy) || edit}
-        onSaved={refresh}
-        onDirty={setPreparationDirty}
-        onReady={setPreparationReady}
-        onBusy={setPreparationSaving}
-      />
-      <div className="processing-bar">
-        {active && lecture.job ? (
-          <JobProgress job={lecture.job} />
-        ) : (
-          <span className="muted small">
-            {lecture.notes
-              ? "Notes generated from your lecture."
-              : lecture.status === "recording"
-                ? "Live recording in progress."
-                : "Ready to turn this lecture into study notes."}
-          </span>
-        )}
-        <div className="actions">
-          {active && lecture.status !== "recording" ? (
-            <Button icon={Square} disabled={Boolean(busy)} onClick={cancel}>
-              Cancel processing
-            </Button>
-          ) : lecture.status === "recording" ? (
-            <a className="button" href="#/record">
-              Open recorder
-            </a>
+      <section
+        className="reader-context"
+        aria-label="Preparation and processing"
+      >
+        <StorageStatus lecture={lecture} />
+        <Preparation
+          key={lecture.id}
+          lecture={lecture}
+          disabled={active || Boolean(busy) || edit}
+          onSaved={refresh}
+          onDirty={setPreparationDirty}
+          onReady={setPreparationReady}
+          onBusy={setPreparationSaving}
+        />
+        <div className="processing-bar">
+          {active && lecture.job ? (
+            <JobProgress job={lecture.job} />
           ) : (
-            <>
-              <label className="check small">
-                <input
-                  type="checkbox"
-                  checked={diarize ?? settings?.diarization ?? false}
-                  onChange={(e) => setDiarize(e.target.checked)}
-                />
-                Detect speakers
-              </label>
-              {hasMedia && (
-                <Button
-                  icon={FileAudio}
-                  disabled={Boolean(busy) || preparationSaving}
-                  onClick={() => void process(false, true)}
-                >
-                  Transcribe locally
-                </Button>
-              )}
-              <Button
-                variant="primary"
-                icon={lecture.notes ? RotateCcw : Play}
-                disabled={
-                  Boolean(busy) ||
-                  dirty ||
-                  preparationDirty ||
-                  contentDirty ||
-                  !preparationReady
-                }
-                onClick={() =>
-                  lecture.notes ? setRegenerate(true) : void process(false)
-                }
-              >
-                {busy === "process"
-                  ? "Queuing…"
-                  : lecture.notes
-                    ? "Regenerate notes"
-                    : ["failed", "cancelled", "interrupted"].includes(
-                          lecture.status,
-                        )
-                      ? "Retry processing"
-                      : "Generate notes"}
-              </Button>
-            </>
+            <span className="muted small">
+              {lecture.notes
+                ? "Notes generated from your lecture."
+                : lecture.status === "recording"
+                  ? "Live recording in progress."
+                  : "Ready to turn this lecture into study notes."}
+            </span>
           )}
+          <div className="actions">
+            {active && lecture.status !== "recording" ? (
+              <Button icon={Square} disabled={Boolean(busy)} onClick={cancel}>
+                Cancel processing
+              </Button>
+            ) : lecture.status === "recording" ? (
+              <a className="button" href="#/record">
+                Open recorder
+              </a>
+            ) : (
+              <>
+                <label className="check small">
+                  <input
+                    type="checkbox"
+                    checked={diarize ?? settings?.diarization ?? false}
+                    onChange={(e) => setDiarize(e.target.checked)}
+                  />
+                  Detect speakers
+                </label>
+                {hasMedia && (
+                  <Button
+                    icon={FileAudio}
+                    disabled={Boolean(busy) || preparationSaving}
+                    onClick={() => void process(false, true)}
+                  >
+                    Transcribe locally
+                  </Button>
+                )}
+                <Button
+                  variant="primary"
+                  icon={lecture.notes ? RotateCcw : Play}
+                  disabled={
+                    Boolean(busy) ||
+                    dirty ||
+                    preparationDirty ||
+                    contentDirty ||
+                    !preparationReady
+                  }
+                  onClick={() =>
+                    lecture.notes ? setRegenerate(true) : void process(false)
+                  }
+                >
+                  {busy === "process"
+                    ? "Queuing…"
+                    : lecture.notes
+                      ? "Regenerate notes"
+                      : ["failed", "cancelled", "interrupted"].includes(
+                            lecture.status,
+                          )
+                        ? "Retry processing"
+                        : "Generate notes"}
+                </Button>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      </section>
       <div className="tabs" role="tablist" aria-label="Lecture views">
         {tabs.map((name, index) => (
           <button

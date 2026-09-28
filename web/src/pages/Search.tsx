@@ -40,7 +40,7 @@ export function Search({ courses }: { courses: Course[] }) {
     .sort((a, b) => a.term.localeCompare(b.term));
   return (
     <>
-      <PageHeader eyebrow="Connect ideas" title="Search" />
+      <PageHeader title="Search" />
       <div className="toolbar">
         <div className="search-input large">
           <SearchIcon size={20} />

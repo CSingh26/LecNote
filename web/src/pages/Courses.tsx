@@ -58,7 +58,6 @@ export function Courses({
   return (
     <>
       <PageHeader
-        eyebrow="Organize"
         title="Courses"
         actions={
           <Button icon={Plus} variant="primary" onClick={() => setEdit("new")}>

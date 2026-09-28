@@ -138,10 +138,8 @@ for (const stopMode of [
       });
     }
     await page.goto("/");
-    await page
-      .getByRole("button", { name: "New lecture", exact: true })
-      .first()
-      .click();
+    await page.getByRole("button", { name: "Add lecture" }).click();
+    await page.getByRole("menuitem", { name: "Upload recording" }).click();
     await page
       .getByRole("button", { name: "Record live", exact: true })
       .click();
@@ -212,7 +210,7 @@ for (const stopMode of [
       await expect(
         page.getByText("Recording paused", { exact: true }),
       ).toBeVisible();
-      await page.getByRole("link", { name: "Record", exact: true }).click();
+      await page.getByRole("link", { name: /^Paused \d+:\d{2}$/ }).click();
       await expect(
         page.getByRole("button", { name: "Resume recording" }),
       ).toBeVisible();
@@ -307,15 +305,12 @@ for (const stopMode of [
     });
     expect(capture.calls).toEqual(["lecture", "microphone"]);
     expect(capture.states.every((state) => state === "ended")).toBe(true);
-    await page.getByRole("button", { name: "Open navigation" }).click();
     await page
-      .getByRole("navigation")
+      .getByRole("navigation", { name: "Main navigation" })
       .getByRole("link", { name: "Library", exact: true })
       .click();
-    await page
-      .getByRole("button", { name: "New lecture", exact: true })
-      .first()
-      .click();
+    await page.getByRole("button", { name: "Add lecture" }).click();
+    await page.getByRole("menuitem", { name: "Upload recording" }).click();
     await page
       .getByRole("button", { name: "Record live", exact: true })
       .click();
@@ -343,18 +338,18 @@ test("empty desktop and mobile layouts, dialog keyboard access, and real native 
     path: testInfo.outputPath("library-desktop.png"),
     fullPage: true,
   });
-  await page
-    .getByRole("button", { name: "New lecture", exact: true })
-    .first()
-    .click();
+  await page.getByRole("button", { name: "Upload recording" }).click();
   await page.keyboard.press("Shift+Tab");
-  await expect(page.getByRole("button", { name: "Add lecture" })).toBeFocused();
+  await expect(
+    page.getByRole("dialog").getByRole("button", { name: "Add lecture" }),
+  ).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "New lecture", exact: true })
-    .first()
-    .click();
+  await expect(
+    page.getByRole("button", { name: "Upload recording" }),
+  ).toBeFocused();
+  await page.getByRole("button", { name: "Add lecture" }).click();
+  await page.getByRole("menuitem", { name: "Upload recording" }).click();
   await page.getByLabel("Recording file").setInputFiles({
     name: "test.wav",
     mimeType: "audio/wav",
@@ -367,7 +362,10 @@ test("empty desktop and mobile layouts, dialog keyboard access, and real native 
   await page.route("**/api/lectures", (route) =>
     route.fulfill({ json: lecture }),
   );
-  await page.getByRole("button", { name: "Add lecture" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Add lecture" })
+    .click();
   expect((await request).postData()).toContain('name="process"\r\n\r\nfalse');
   await expect(
     page.getByText("Imported transcript · No source recording"),
@@ -390,8 +388,7 @@ test("empty desktop and mobile layouts, dialog keyboard access, and real native 
     path: testInfo.outputPath("library-mobile.png"),
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Open navigation" }).click();
-  await page.getByRole("link", { name: "Record", exact: true }).click();
+  await page.getByRole("link", { name: "Record lecture" }).click();
   await expect(
     page.getByRole("button", { name: "Start recording" }),
   ).toBeVisible();
@@ -447,6 +444,12 @@ test("recording survives navigation, sends sample-derived ordered WAV chunks and
     events.push(`chunk-${sequence}`);
     await route.fulfill({ json: { accepted: true } });
   });
+  const apiCalls: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/"))
+      apiCalls.push(`${request.method()} ${url.pathname}`);
+  });
   await page.route("**/api/live/**/finish", async (route) => {
     events.push("finish");
     await route.fulfill({ json: lecture });
@@ -468,10 +471,30 @@ test("recording survives navigation, sends sample-derived ordered WAV chunks and
   await expect(page.getByText("Live transcript", { exact: true })).toHaveCount(
     0,
   );
+  const requestsBefore = apiCalls.length;
   await page.getByRole("link", { name: "Library", exact: true }).click();
   await expect(page.getByText("Recording in progress")).toBeVisible();
+  await page.getByRole("link", { name: "Materials", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Materials" })).toBeVisible();
+  await expect(page.getByText("Recording in progress")).toBeVisible();
+  await expect(
+    page.locator(".record-action.is-live").getByText("Recording"),
+  ).toBeVisible();
   await expect.poll(() => received.length, { timeout: 20000 }).toBe(1);
-  await page.getByRole("link", { name: "Record", exact: true }).click();
+  // Navigation alone never starts capture again or paid generation.
+  expect(
+    apiCalls
+      .slice(requestsBefore)
+      .filter((call) => /POST .*\/(live|process)$/.test(call)),
+  ).toEqual([]);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { microphoneRequests: number })
+          .microphoneRequests,
+    ),
+  ).toBe(1);
+  await page.getByRole("link", { name: "Open recorder" }).click();
   await expect(page.getByText("Live transcript", { exact: true })).toHaveCount(
     0,
   );

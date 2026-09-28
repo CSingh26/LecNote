@@ -67,7 +67,6 @@ export function NotesView({
         {notes ? (
           <>
             <section className="note-section" id="overview">
-              <div className="eyebrow">OVERVIEW</div>
               <h2>{notes.title || lecture.title}</h2>
               <Markdown>{notes.overview}</Markdown>
             </section>

@@ -220,7 +220,7 @@ export default function App() {
                 <span>
                   {recording.phase === "paused" ? "Paused" : "Recording"}
                 </span>
-                <span className="record-time">{time(recording.elapsed)}</span>
+                <span className="record-elapsed">{time(recording.elapsed)}</span>
               </>
             ) : (
               <span>Record lecture</span>
@@ -284,7 +284,7 @@ export default function App() {
           Manage courses
           <ChevronRight size={14} aria-hidden="true" />
         </a>
-        <div className="rail-footer" role="status">
+        <div className="rail-footer">
           <i className={online ? "online-dot" : "offline-dot"} />
           <span>
             {health.error

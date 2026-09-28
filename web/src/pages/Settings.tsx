@@ -23,7 +23,7 @@ export function Settings({
 }) {
   return (
     <>
-      <PageHeader eyebrow="Preferences" title="Settings" />
+      <PageHeader title="Settings" />
       <ErrorNotice error={error} retry={refresh} />
       {settings ? (
         <SettingsForm initial={settings} onSaved={onSaved} />

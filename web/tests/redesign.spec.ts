@@ -155,3 +155,27 @@ for (const width of [390, 320]) {
     await noHorizontalOverflow(page);
   });
 }
+
+test("remaining screens share the Course Editions system", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await installDemoApi(page);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const route of ["record", "courses", "jobs", "search", "settings"]) {
+      await page.goto(`/#/${route}`);
+      await expect(page.locator("main h1").first()).toBeVisible();
+      const size = await page
+        .locator("main h1")
+        .first()
+        .evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
+      expect(size).toBeLessThanOrEqual(32);
+      await noHorizontalOverflow(page);
+      await page.screenshot({
+        path: `${shots}/${route}-${width}.png`,
+        fullPage: width < 800,
+      });
+    }
+  }
+  expect(errors).toEqual([]);
+});

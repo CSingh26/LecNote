@@ -832,12 +832,13 @@ hr {
 }
 .course-row {
   --accent: var(--primary);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
   box-shadow: none;
-  padding: 22px 22px;
-  margin-bottom: 14px;
+  padding: 18px 12px;
+  margin-bottom: 0;
   display: flex;
   gap: 20px;
   align-items: flex-start;
@@ -849,7 +850,9 @@ hr {
 }
 .course-row:hover {
   background: var(--surface-2);
-  border-color: var(--line-strong);
+}
+.course-row:first-of-type {
+  border-top: 1px solid var(--ink);
 }
 .course-mark {
   height: 50px;
@@ -1925,7 +1928,7 @@ input[type="file"].sr-only {
 .record-action.is-live .record-mark::after {
   animation: blink 1.4s ease infinite;
 }
-.record-action .record-time {
+.record-action .record-elapsed {
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 600;
@@ -2506,6 +2509,33 @@ main {
   padding-top: 24px;
   border-top: 1px solid var(--ink);
 }
+.reader-context {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.reader-context .lecture-preparation {
+  border: 0;
+  margin: 0;
+  padding: 12px 0;
+}
+.reader-context .lecture-preparation h2 {
+  font-size: 18px;
+}
+.reader-context .processing-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0 12px;
+  border-top: 1px dashed var(--line);
+}
+.reader-context .processing-bar > .actions {
+  justify-content: flex-end;
+}
+.reader-context .processing-bar .job-progress {
+  flex: 1;
+}
 /* Course materials */
 .course-materials {
   display: grid;
@@ -2521,7 +2551,10 @@ main {
 }
 .course-materials h3,
 .course-materials h2 {
-  font-size: 20px;
+  font-family: var(--font-display);
+  font-stretch: condensed;
+  font-weight: 700;
+  font-size: 21px;
 }
 .course-materials-header .button {
   min-height: 34px;
@@ -3226,7 +3259,7 @@ main {
   .brand {
     font-size: 26px;
   }
-  .button.record-action > span:not(.record-mark):not(.record-time) {
+  .button.record-action > span:not(.record-mark):not(.record-elapsed) {
     position: absolute;
     width: 1px;
     height: 1px;

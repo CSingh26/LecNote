@@ -21,7 +21,13 @@ Implementation status:
   Reading workspace: a compact lecture index beside the open lecture with notes
   and course materials side by side. Lecture links stay linkable; closing the
   reader returns to the lecture's course library and honors unsaved edits.
-- Pending: remaining screens, motion and responsive verification.
+- Done: the reader groups storage, preparation, and processing controls in one
+  contextual band above the view tabs (Notes, Transcript, Materials, Review,
+  Relevance); the Materials tab separates lecture attachments from reusable
+  course materials. Record, Courses, Jobs, Search, and Settings use the same
+  type, rules, and controls, without decorative eyebrows. Existing
+  preparation, dirty-state, busy, and explicit-generation checks are unchanged.
+- Pending: motion and final responsive verification.
 
 Visual measurements were taken from the approved comp and its generation
 record directly; the Impeccable `comp-spec`/`font-match` tooling was not
