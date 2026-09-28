@@ -398,7 +398,7 @@ def create_app(settings: Settings | None = None, start_worker=True):
         get_lecture(lecture_id)
         return manager.cancel(lecture_id) or {"status": "cancelled"}
 
-    @app.get("/api/lectures/{lecture_id}/media")
+    @app.api_route("/api/lectures/{lecture_id}/media", methods=["GET", "HEAD"])
     def media(lecture_id: str):
         value = get_lecture(lecture_id)
         if not value.get("media_path") or not Path(value["media_path"]).is_file():

@@ -139,6 +139,26 @@ def test_upload_uses_server_filename_and_unsupported_file_rejected(client):
     assert client.get(f"/api/lectures/{item['id']}/media").content == b"RIFF data"
 
 
+def test_media_head_exposes_playback_headers_without_body(client):
+    uploaded = client.post(
+        "/api/lectures",
+        files={"file": ("recording.wav", b"RIFF data")},
+        data={"title": "Playback", "process": "false"},
+    ).json()
+    url = f"/api/lectures/{uploaded['id']}/media"
+    head = client.head(url)
+    assert head.status_code == 200
+    assert head.content == b""
+    assert head.headers["content-type"] == "audio/wav"
+    assert head.headers["content-length"] == "9"
+    assert head.headers["accept-ranges"] == "bytes"
+    ranged = client.get(url, headers={"Range": "bytes=0-3"})
+    assert ranged.status_code == 206
+    assert ranged.content == b"RIFF"
+    assert ranged.headers["content-range"] == "bytes 0-3/9"
+    assert client.head("/api/lectures/missing/media").status_code == 404
+
+
 def test_queue_deduplicates_and_cancel_preserves_transcript(client):
     lecture = imported(client).json()
     client.patch(f"/api/lectures/{lecture['id']}", json={"context": "Energy and momentum"})

@@ -73,7 +73,8 @@ x_label:string,y_label:string,image:string|null}`.
   Synchronous local conversion in a thread pool. Two to twenty distinct same-class
   finalized sources; six hours and 4 GiB combined input maximum. Missing transcript
   parts queue local transcription only. Originals are preserved. Busy inputs return 409.
-- GET `/lectures/{id}/media` -> range-enabled current media, including optimized M4A.
+- GET / HEAD `/lectures/{id}/media` -> range-enabled current media, including
+  optimized M4A. HEAD returns the playback metadata headers without a response body.
 - GET `/lectures/{id}/notes` -> Notes or 404.
 - PUT `/lectures/{id}/notes` body `{user_notes:string}` -> Lecture.
 - POST `/lectures/{id}/attachments` multipart `file` -> Attachment.

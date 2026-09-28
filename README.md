@@ -9,6 +9,7 @@ CLI failures now report the API's actionable reason, including invalid fields,
 unsupported recordings, and empty uploads.
 Invalid API requests containing non-finite numbers return structured validation
 errors instead of server errors.
+Recording URLs support metadata-only HEAD requests as well as ranged playback.
 
 ## v1.0.1 release
 
