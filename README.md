@@ -5,6 +5,8 @@
 Fixes are being verified individually on `v1.0.2`. Transcript editing now
 correctly explains that generated notes are preserved and marked potentially
 out of date. Personal notes are kept.
+CLI failures now report the API's actionable reason, including invalid fields,
+unsupported recordings, and empty uploads.
 
 ## v1.0.1 release
 

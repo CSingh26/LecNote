@@ -7,6 +7,30 @@ from pathlib import Path
 from .config import Settings
 
 
+def _check(response):
+    if response.is_success:
+        return response
+    try:
+        body = response.json()
+        detail = body.get("detail") if isinstance(body, dict) else body
+    except ValueError:
+        detail = response.text.strip()
+    if isinstance(detail, list):
+        messages = []
+        for item in detail:
+            if isinstance(item, dict):
+                location = list(item.get("loc", []))
+                if location and location[0] in {"body", "query", "path"}:
+                    location = location[1:]
+                field = ".".join(str(part) for part in location)
+                reason = str(item.get("msg", "Invalid value"))
+                messages.append(f"{field}: {reason}" if field else reason)
+            else:
+                messages.append(str(item))
+        detail = "; ".join(messages)
+    raise RuntimeError(str(detail) if detail else f"Request failed with status {response.status_code}")
+
+
 async def process(args, settings):
     import httpx
 
@@ -21,7 +45,7 @@ async def process(args, settings):
                 lecture_id = args.resume
                 if args.context or args.material:
                     current = await client.get(f"/api/lectures/{lecture_id}")
-                    current.raise_for_status()
+                    _check(current)
                     prepared = await client.put(
                         f"/api/lectures/{lecture_id}/preparation",
                         json={
@@ -30,7 +54,7 @@ async def process(args, settings):
                             or current.json().get("selected_resource_ids", []),
                         },
                     )
-                    prepared.raise_for_status()
+                    _check(prepared)
                 response = await client.post(
                     f"/api/lectures/{lecture_id}/process",
                     json={
@@ -66,7 +90,7 @@ async def process(args, settings):
                                 "process": "false",
                             },
                         )
-                response.raise_for_status()
+                _check(response)
                 lecture_id = response.json()["id"]
                 print(f"Lecture: {lecture_id}", flush=True)
                 if args.material:
@@ -77,7 +101,7 @@ async def process(args, settings):
                             "selected_resource_ids": args.material,
                         },
                     )
-                    prepared.raise_for_status()
+                    _check(prepared)
                 if args.no_process:
                     return
                 response = await client.post(
@@ -88,12 +112,12 @@ async def process(args, settings):
                         "transcribe_only": args.transcribe_only,
                     },
                 )
-            response.raise_for_status()
+            _check(response)
             previous = None
             try:
                 while True:
                     result = await client.get(f"/api/lectures/{lecture_id}")
-                    result.raise_for_status()
+                    _check(result)
                     lecture = result.json()
                     job = lecture["job"]
                     state = (job["stage"], round(job["progress"]), job["message"])
