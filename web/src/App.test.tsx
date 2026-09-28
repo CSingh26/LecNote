@@ -224,3 +224,16 @@ it("keeps saved secrets blank and omits untouched secrets when saving settings",
   expect(payload).not.toHaveProperty("api_key");
   expect(payload).not.toHaveProperty("hf_token");
 });
+
+it.each(["#/lectures/missing", "#/lecture", "#/lecture/%ZZ", "#/library/extra"])(
+  "offers a return to the library from an invalid route %s",
+  async (hash) => {
+    window.location.hash = hash;
+    const user = userEvent.setup();
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "Page not found" })).toBeInTheDocument();
+    expect(document.title).toBe("Page not found · LecNote");
+    await user.click(screen.getByRole("link", { name: "Back to library" }));
+    expect(await screen.findByText("Your library starts here")).toBeInTheDocument();
+  },
+);

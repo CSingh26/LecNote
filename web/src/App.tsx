@@ -9,6 +9,7 @@ import {
   Mic,
   Monitor,
   Search as SearchIcon,
+  SearchX,
   Settings as SettingsIcon,
   X,
 } from "lucide-react";
@@ -23,7 +24,7 @@ import { Settings } from "./pages/Settings";
 import { Jobs } from "./pages/Jobs";
 import { Lecture } from "./pages/Lecture";
 import { LectureForm } from "./components/LectureForm";
-import { IconButton } from "./components/ui";
+import { Empty, IconButton } from "./components/ui";
 
 const navigation = [
   { path: "library", label: "Library", icon: LibraryIcon },
@@ -48,10 +49,22 @@ export default function App() {
   const health = useResource<{ status: string }>("/health", 15000);
   const recording = useRecorder();
   const [pathname, query = ""] = route.replace(/^#\/?/, "").split("?");
-  const [page = "library", id] = pathname.split("/");
+  const [page = "library", encodedId, ...extra] = (pathname || "library").split("/");
+  let id = "";
+  try {
+    id = encodedId ? decodeURIComponent(encodedId) : "";
+  } catch {
+    // Malformed links use the same recovery view as an unknown route.
+  }
+  const knownRoute =
+    extra.length === 0 &&
+    (page === "lecture"
+      ? Boolean(id)
+      : !encodedId && navigation.some((item) => item.path === page));
   const params = new URLSearchParams(query);
-  const title =
-    navigation.find((item) => item.path === page)?.label || "Lecture";
+  const title = knownRoute
+    ? navigation.find((item) => item.path === page)?.label || "Lecture"
+    : "Page not found";
   const changed = () => {
     setVersion((v) => v + 1);
     courses.refresh();
@@ -227,7 +240,18 @@ export default function App() {
           tabIndex={-1}
           key={page === "lecture" ? id : page}
         >
-          {page === "courses" ? (
+          {!knownRoute ? (
+            <Empty
+              icon={SearchX}
+              title="Page not found"
+              action={
+                <a className="button primary" href="#/library">
+                  <LibraryIcon size={16} aria-hidden="true" />
+                  Back to library
+                </a>
+              }
+            />
+          ) : page === "courses" ? (
             <Courses
               courses={courseList}
               loading={courses.loading}
@@ -254,7 +278,7 @@ export default function App() {
             <Jobs />
           ) : page === "lecture" && id ? (
             <Lecture
-              id={decodeURIComponent(id)}
+              id={id}
               courses={courseList}
               settings={settings.data}
               onChanged={changed}
