@@ -70,15 +70,17 @@ export function Materials({
     <div className="materials-view">
       <div className="split">
         <div>
-          <h2>Source materials</h2>
-          <p className="muted">Any file type, up to 30 MiB each.</p>
+          <h2>Lecture attachments</h2>
+          <p className="muted">
+            Files for this lecture only. Any file type, up to 30 MiB each.
+          </p>
         </div>
         <Button
           icon={Upload}
           disabled={busy}
           onClick={() => input.current?.click()}
         >
-          {busy ? "Uploading…" : "Add materials"}
+          {busy ? "Uploading…" : "Attach files"}
         </Button>
         <input
           ref={input}
@@ -154,8 +156,8 @@ export function Materials({
           ))}
         </div>
       ) : (
-        <Empty icon={Paperclip} title="No source materials yet">
-          Add files for this lecture. Originals are kept for download.
+        <Empty icon={Paperclip} title="No lecture attachments yet">
+          Attach files for this lecture. Originals are kept for download.
         </Empty>
       )}
       {selected && (

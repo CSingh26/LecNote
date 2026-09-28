@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { chromium } from '../web/node_modules/playwright/index.mjs';
+import { expect } from '../web/node_modules/@playwright/test/index.mjs';
 
 const base = process.env.LECNOTE_TEST_URL || 'http://127.0.0.1:8871';
 const output = path.resolve('artifacts/browser');
@@ -31,7 +32,7 @@ async function screenshot(name) {
 
 try {
   await page.goto(base);
-  await page.getByRole('heading', { name: 'Library', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'All courses', exact: true }).waitFor();
   await page.screenshot({ path: `${output}/library-desktop.png`, fullPage: true });
   await fits();
   await page.getByRole('navigation').getByRole('link', { name: 'Courses', exact: true }).click();
@@ -42,7 +43,8 @@ try {
   await page.getByRole('button', { name: 'Create course', exact: true }).click();
   await page.getByRole('heading', { name: courseName }).waitFor();
   await page.getByRole('navigation').getByRole('link', { name: 'Library', exact: true }).click();
-  await page.getByRole('button', { name: 'New lecture', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Add lecture', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Import transcript', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Transcript', exact: true }).click();
   await dialog.getByLabel('Transcript file', { exact: true }).setInputFiles(path.resolve('examples/transcript.json'));
@@ -88,7 +90,7 @@ try {
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
   await page.reload();
   await page.getByRole('heading', { name: 'Key takeaways', exact: true }).waitFor();
-  assert.equal(await page.getByLabel('Course', { exact: true }).inputValue(), accounting.id);
+  await expect(page.getByLabel('Course', { exact: true })).toHaveValue(accounting.id);
   const savedLecture = await (await page.request.get(`${base}/api/lectures/${lectureId}`)).json();
   assert.deepEqual(savedLecture.notes, notesBeforeEdit, 'Course assignment and detail saves must preserve notes');
   assert.equal(savedLecture.course_id, accounting.id);
@@ -132,11 +134,10 @@ try {
   await fits();
   await page.goto(`${base}/#/lecture/${lectureId}`);
   await page.getByRole('heading', { name: 'Key takeaways', exact: true }).waitFor();
-  assert.ok(await page.locator('.sidebar').evaluate(element => element.getBoundingClientRect().right <= 0), 'Closed mobile sidebar must not cover notes');
+  assert.equal(await page.locator('.course-rail').isVisible(), false, 'Closed course drawer must not cover notes');
   await screenshot('notes-mobile');
   await fits();
-  await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
-  await page.getByRole('navigation').getByRole('link', { name: 'Record', exact: true }).click();
+  await page.getByRole('link', { name: 'Record lecture', exact: true }).click();
   await page.getByRole('heading', { name: /Record/ }).first().waitFor();
   await screenshot('record-mobile');
   await fits();
@@ -152,13 +153,12 @@ try {
       return values.some((value, index) => index % 4 === 3 && value > 0);
     });
     assert.equal(waveHasSignal, true);
-    await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
     await page.getByRole('navigation').getByRole('link', { name: 'Library', exact: true }).click();
     await page.getByRole('link', { name: /Recording in progress/ }).click();
     await page.getByRole('button', { name: 'Stop & save', exact: true }).click();
     await page.getByRole('button', { name: 'Record another lecture', exact: true }).waitFor({ timeout: 20000 });
     await page.getByRole('link', { name: 'Open lecture', exact: true }).click();
-    await page.getByRole('heading', { name: 'Key takeaways', exact: true }).waitFor({ timeout: 60000 });
+    await page.getByRole('button', { name: 'Generate notes', exact: true }).waitFor({ timeout: 60000 });
     assert.equal(await page.locator('audio').count(), 1);
     await screenshot('recorded-lecture-mobile');
     await fits();

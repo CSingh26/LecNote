@@ -42,7 +42,7 @@ export function Jobs() {
   }
   return (
     <>
-      <PageHeader eyebrow="Processing" title="Jobs">
+      <PageHeader title="Jobs">
         Transcription and note generation on your local workspace.
       </PageHeader>
       <ErrorNotice error={error || jobs.error} retry={jobs.refresh} />

@@ -1,5 +1,47 @@
 # Verification record
 
+## v1.1.0 release verification
+
+The Reading workspace redesign is merged with main's recording-recovery tools.
+Release checks use isolated synthetic libraries, not the user's live data.
+
+- Python: 463 passed. Frontend: 120 passed. Chromium: 26 passed. Recovery proxy:
+  3 passed. Ruff, TypeScript, production build, and whitespace checks passed.
+- Independent code review found a Materials-page grid selector mismatch. The
+  new desktop regression failed with a 172px search field before the fix; both
+  desktop and mobile geometry checks pass after targeting the wrapper correctly.
+  Follow-up review found no blocking issues. Screenshots were inspected at
+  1280px and 390px; the Materials evidence image is refreshed.
+- Real-API production browser smoke passed course creation, import, correction,
+  explicit fixture note generation, retained notes, course reassignment, math,
+  diagrams, personal notes, review, PDF export, search, settings, and layouts.
+- Merge smoke passed real FFmpeg assembly, queued fixture notes, preparation
+  and resource provenance, independent attachment download, and narrow layouts.
+- Mechanical design checks found only existing legacy border/easing declarations,
+  outside the layout correction. No broader visual redesign was added here.
+- Existing non-failing warnings: FastAPI test-client deprecation and large
+  production JavaScript chunks. Physical capture, paid inference, other browser
+  engines, and Windows were not re-tested for this release.
+
+## Course Editions redesign (branch `redesign/reading-workspace`)
+
+Frontend-only redesign, verified in isolation with synthetic Playwright route
+fixtures; no real library, running server, or credentials were used.
+
+- Python: 463 tests passed; Ruff clean. Frontend: 120 tests passed (course
+  materials panel, Materials page, Add lecture menu, route/course sync, reader
+  index, close/unsaved-edit protection, keyboard tabs, retry). TypeScript and
+  production build passed; Prettier clean on changed files.
+- Chromium: 24 passed, including the new `tests/redesign.spec.ts` (geometry at
+  320/390/1280/1440 px with no horizontal overflow, 12 reachable courses, long
+  titles, keyboard menu and drawer focus, resource errors with retry, 160ms and
+  180ms motion, reduced motion) and the updated recording flows (capture
+  survives Library and Materials navigation without new capture or generation
+  requests).
+- Evidence and limits: `.impeccable/review/README.md`. No paid OpenAI call,
+  physical microphone, or real-device check was performed for the redesign.
+
+
 ## v1.0.2 isolated verification
 
 The maintenance branch was developed and verified in a separate checkout and

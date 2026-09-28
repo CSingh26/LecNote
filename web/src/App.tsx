@@ -1,13 +1,18 @@
-import { useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   Activity,
-  AudioLines,
   BookOpen,
   ChevronRight,
+  FolderOpen,
   Library as LibraryIcon,
-  Menu,
   Mic,
-  Monitor,
+  PanelLeft,
   Search as SearchIcon,
   SearchX,
   Settings as SettingsIcon,
@@ -23,20 +28,30 @@ import { Record } from "./pages/Record";
 import { Settings } from "./pages/Settings";
 import { Jobs } from "./pages/Jobs";
 import { Lecture } from "./pages/Lecture";
+import { MaterialsPage } from "./pages/Materials";
 import { LectureForm } from "./components/LectureForm";
-import { Empty, IconButton } from "./components/ui";
+import { Empty, Loading } from "./components/ui";
 
-const navigation = [
+const destinations = [
   { path: "library", label: "Library", icon: LibraryIcon },
   { path: "courses", label: "Courses", icon: BookOpen },
+  { path: "materials", label: "Materials", icon: FolderOpen },
   { path: "search", label: "Search", icon: SearchIcon },
-  { path: "record", label: "Record", icon: Mic },
+];
+const utilities = [
   { path: "jobs", label: "Jobs", icon: Activity },
   { path: "settings", label: "Settings", icon: SettingsIcon },
 ];
+const navigation = [
+  ...destinations,
+  { path: "record", label: "Record lecture", icon: Mic },
+  ...utilities,
+];
+const withCourse = (path: string, courseId?: string | null) =>
+  `#/${path}${courseId ? `?course=${encodeURIComponent(courseId)}` : ""}`;
 export default function App() {
   const [route, setRoute] = useState(window.location.hash || "#/library");
-  const [mobile, setMobile] = useState(false);
+  const [drawer, setDrawer] = useState(false);
   const [create, setCreate] = useState<{
     mode: "upload" | "transcript";
     courseId: string;
@@ -44,6 +59,12 @@ export default function App() {
   const [version, setVersion] = useState(0);
   const [recordingDraft, setRecordingDraft] = useState<RecordingDraft>();
   const [dirty, setDirty] = useState(false);
+  const [resolved, setResolved] = useState<{
+    id: string;
+    course: string | null;
+  }>();
+  const lastIndexCourse = useRef<string | null | undefined>(undefined);
+  const drawerToggle = useRef<HTMLButtonElement>(null);
   const courses = useResource<Course[]>("/courses", 10000);
   const settings = useResource<SettingsData>("/settings");
   const health = useResource<{ status: string }>("/health", 15000);
@@ -65,11 +86,29 @@ export default function App() {
       : !encodedId && navigation.some((item) => item.path === page));
   const params = new URLSearchParams(query);
   const title = knownRoute
-    ? navigation.find((item) => item.path === page)?.label || "Lecture"
+    ? page === "record"
+      ? "Record"
+      : navigation.find((item) => item.path === page)?.label || "Lecture"
     : "Page not found";
+  // The lecture route reports its actual course; context from another lecture
+  // is never treated as current.
+  const lectureCourse =
+    page === "lecture" && resolved?.id === id ? resolved.course : undefined;
+  if (lectureCourse !== undefined) lastIndexCourse.current = lectureCourse;
+  const indexCourse =
+    lectureCourse !== undefined ? lectureCourse : lastIndexCourse.current;
+  const selectedCourse =
+    page === "lecture" ? lectureCourse || "" : params.get("course") || "";
+  const onCourseResolved = useCallback(
+    (course: string | null) => setResolved({ id, course }),
+    [id],
+  );
   const changed = () => {
     setVersion((v) => v + 1);
     courses.refresh();
+  };
+  const selectCourse = (path: string) => (courseId: string) => {
+    window.location.hash = withCourse(path, courseId).slice(1);
   };
   useEffect(() => {
     const update = () => {
@@ -83,7 +122,7 @@ export default function App() {
       }
       setDirty(false);
       setRoute(window.location.hash || "#/library");
-      setMobile(false);
+      setDrawer(false);
     };
     window.addEventListener("hashchange", update);
     return () => window.removeEventListener("hashchange", update);
@@ -102,16 +141,25 @@ export default function App() {
     document.title = `${title} · LecNote`;
   }, [title]);
   useEffect(() => {
-    if (!mobile) return;
+    if (!drawer) return;
+    document.querySelector<HTMLElement>("#course-rail nav a")?.focus();
     const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobile(false);
+      if (event.key === "Escape") {
+        setDrawer(false);
+        drawerToggle.current?.focus();
+      }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [mobile]);
+  }, [drawer]);
   const courseList = courses.data ?? [];
+  const coursePage = page === "materials" ? "materials" : "library";
+  const capturing = ["recording", "paused", "stopping", "blocked"].includes(
+    recording.phase,
+  );
+  const online = Boolean(health.data && !health.error);
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${page === "lecture" ? "is-reading" : ""}`}>
       <a
         className="skip-link"
         href="#main-content"
@@ -122,125 +170,158 @@ export default function App() {
       >
         Skip to content
       </a>
-      {mobile && (
-        <button
-          className="sidebar-scrim"
-          aria-label="Close navigation"
-          onClick={() => setMobile(false)}
-        />
-      )}
-      <aside className={`sidebar ${mobile ? "open" : ""}`}>
-        <a className="brand" href="#/library">
-          <span className="brand-icon">
-            <AudioLines size={23} />
-          </span>
-          <span>
-            LecNote<small>LECTURE WORKSPACE</small>
-          </span>
-        </a>
-        <div className="sidebar-heading">WORKSPACE</div>
-        <nav aria-label="Main navigation">
-          {navigation.map(({ path, label, icon: Icon }) => (
-            <a
-              href={`#/${path}`}
-              key={path}
-              aria-current={page === path ? "page" : undefined}
-              className={page === path ? "selected" : ""}
+      <header className="app-header">
+        <div className="brand-cell">
+          <span className="drawer-toggle">
+            <button
+              ref={drawerToggle}
+              type="button"
+              className="icon-button"
+              aria-label={drawer ? "Close courses" : "Open courses"}
+              aria-expanded={drawer}
+              aria-controls="course-rail"
+              onClick={() => setDrawer((value) => !value)}
             >
-              <Icon size={19} />
+              {drawer ? <X size={18} /> : <PanelLeft size={18} />}
+            </button>
+          </span>
+          <a className="brand" href="#/library">
+            LecNote
+          </a>
+        </div>
+        <nav className="primary-nav" aria-label="Main navigation">
+          {destinations.map(({ path, label, icon: Icon }) => (
+            <a
+              key={path}
+              href={
+                path === "materials" || path === "library"
+                  ? withCourse(path, selectedCourse)
+                  : `#/${path}`
+              }
+              aria-current={
+                page === path || (path === "library" && page === "lecture")
+                  ? "page"
+                  : undefined
+              }
+            >
+              <Icon size={18} aria-hidden="true" />
               <span>{label}</span>
-              {path === "record" && recording.phase === "recording" && (
-                <i className="live-dot" />
-              )}
             </a>
           ))}
         </nav>
-        <div className="sidebar-courses">
-          <div className="sidebar-heading">
-            COURSES{" "}
-            <a href="#/courses" aria-label="Manage courses">
-              +
-            </a>
-          </div>
-          {courseList.length ? (
-            courseList.slice(0, 8).map((course) => (
-              <a key={course.id} href={`#/library?course=${course.id}`}>
-                <i style={{ backgroundColor: course.color }} />
-                <span>{course.code || course.name}</span>
+        <div className="header-actions">
+          <a
+            className={`button record-action ${capturing ? "is-live" : ""}`}
+            href={withCourse("record", selectedCourse)}
+            aria-current={page === "record" ? "page" : undefined}
+          >
+            <span className="record-mark" aria-hidden="true" />
+            {capturing ? (
+              <>
+                <span>
+                  {recording.phase === "paused" ? "Paused" : "Recording"}
+                </span>
+                <span className="record-elapsed">
+                  {time(recording.elapsed)}
+                </span>
+              </>
+            ) : (
+              <span>Record lecture</span>
+            )}
+          </a>
+          <nav className="utility-nav" aria-label="Utilities">
+            {utilities.map(({ path, label, icon: Icon }) => (
+              <a
+                key={path}
+                href={`#/${path}`}
+                aria-current={page === path ? "page" : undefined}
+                title={label}
+              >
+                <Icon size={18} aria-hidden="true" />
+                <span>{label}</span>
               </a>
-            ))
-          ) : (
-            <span className="muted small">No courses yet</span>
-          )}
+            ))}
+          </nav>
         </div>
-        <div className="sidebar-footer">
-          <Monitor size={17} />
-          <div>
-            <strong>Local workspace</strong>
-            <span>
-              {health.error
-                ? "Server unavailable"
-                : health.data
-                  ? "Connected to this computer"
-                  : "Connecting…"}
-            </span>
-          </div>
-          <i
-            className={
-              health.data && !health.error ? "online-dot" : "offline-dot"
+      </header>
+      {drawer && (
+        <button
+          className="drawer-scrim"
+          aria-label="Close courses"
+          tabIndex={-1}
+          onClick={() => setDrawer(false)}
+        />
+      )}
+      <aside
+        id="course-rail"
+        className={`course-rail ${drawer ? "open" : ""}`}
+        aria-label="Course index"
+      >
+        <nav aria-label="Courses">
+          <h2 className="rail-heading">My courses</h2>
+          <a
+            href={`#/${coursePage}`}
+            className="rail-all"
+            aria-current={
+              !selectedCourse && page !== "lecture" ? "page" : undefined
             }
-          />
+          >
+            All courses
+          </a>
+          {courseList.map((course) => (
+            <a
+              key={course.id}
+              href={withCourse(coursePage, course.id)}
+              aria-current={selectedCourse === course.id ? "page" : undefined}
+              style={{ "--course": course.color } as CSSProperties}
+            >
+              {course.code && <strong>{course.code}</strong>}
+              <span>{course.name}</span>
+            </a>
+          ))}
+          {!courses.loading && !courseList.length && (
+            <span className="rail-empty">No courses yet</span>
+          )}
+        </nav>
+        <a className="rail-manage" href="#/courses">
+          Manage courses
+          <ChevronRight size={14} aria-hidden="true" />
+        </a>
+        <div className="rail-footer">
+          <i className={online ? "online-dot" : "offline-dot"} />
+          <span>
+            {health.error
+              ? "Server unavailable"
+              : health.data
+                ? "Local workspace"
+                : "Connecting…"}
+          </span>
         </div>
       </aside>
       <div className="workspace">
-        <div className="topbar">
-          <div className="breadcrumb">
-            <span className="mobile-toggle">
-              <IconButton
-                label={mobile ? "Close navigation" : "Open navigation"}
-                icon={mobile ? X : Menu}
-                onClick={() => setMobile((v) => !v)}
-              />
+        {capturing && page !== "record" && (
+          <a className="recording-banner" href="#/record">
+            <Mic size={17} />
+            <strong>
+              {recording.phase === "recording"
+                ? "Recording in progress"
+                : recording.phase === "paused"
+                  ? "Recording paused"
+                  : recording.phase === "blocked"
+                    ? "Recording needs attention"
+                    : "Saving recording"}
+            </strong>
+            <span>{time(recording.elapsed)}</span>
+            <span>
+              Open recorder
+              <ChevronRight size={15} />
             </span>
-            <span>Workspace</span>
-            <ChevronRight size={14} />
-            <strong>{title}</strong>
-          </div>
-          <span className="local-label">
-            <i
-              className={
-                health.data && !health.error ? "online-dot" : "offline-dot"
-              }
-            />
-            {health.error ? "Offline" : "LOCAL"}
-          </span>
-        </div>
-        {["recording", "paused", "stopping", "blocked"].includes(
-          recording.phase,
-        ) &&
-          page !== "record" && (
-            <a className="recording-banner" href="#/record">
-              <Mic size={17} />
-              <strong>
-                {recording.phase === "recording"
-                  ? "Recording in progress"
-                  : recording.phase === "paused"
-                    ? "Recording paused"
-                    : recording.phase === "blocked"
-                      ? "Recording needs attention"
-                      : "Saving recording"}
-              </strong>
-              <span>{time(recording.elapsed)}</span>
-              <span>
-                Open recorder
-                <ChevronRight size={15} />
-              </span>
-            </a>
-          )}
+          </a>
+        )}
         <main
           id="main-content"
           tabIndex={-1}
-          key={page === "lecture" ? id : page}
+          key={page === "lecture" ? "lecture" : page}
         >
           {!knownRoute ? (
             <Empty
@@ -259,6 +340,12 @@ export default function App() {
               loading={courses.loading}
               error={courses.error}
               refresh={courses.refresh}
+            />
+          ) : page === "materials" ? (
+            <MaterialsPage
+              courses={courseList}
+              initialCourse={params.get("course") || ""}
+              onCourseChange={selectCourse("materials")}
             />
           ) : page === "search" ? (
             <Search courses={courseList} />
@@ -279,20 +366,44 @@ export default function App() {
           ) : page === "jobs" ? (
             <Jobs />
           ) : page === "lecture" && id ? (
-            <Lecture
-              id={id}
-              courses={courseList}
-              settings={settings.data}
-              onChanged={changed}
-              onDirty={setDirty}
-              dirty={dirty}
-              seekTo={params.has("t") ? Number(params.get("t")) : null}
-            />
+            <div className="reading-workspace">
+              <section className="lecture-index" aria-label="Lecture index">
+                {indexCourse === undefined ? (
+                  <Loading label="Loading lectures" />
+                ) : (
+                  <Library
+                    key={`index-${indexCourse || "all"}`}
+                    layout="index"
+                    selectedLectureId={id}
+                    courses={courseList}
+                    onNew={(mode, courseId) => setCreate({ mode, courseId })}
+                    version={version}
+                    initialCourse={indexCourse || ""}
+                    apiKeyConfigured={Boolean(
+                      settings.data?.api_key_configured,
+                    )}
+                  />
+                )}
+              </section>
+              <div className="reader-column" key={id}>
+                <Lecture
+                  id={id}
+                  courses={courseList}
+                  settings={settings.data}
+                  onChanged={changed}
+                  onDirty={setDirty}
+                  dirty={dirty}
+                  seekTo={params.has("t") ? Number(params.get("t")) : null}
+                  onCourseResolved={onCourseResolved}
+                />
+              </div>
+            </div>
           ) : (
             <Library
               key={params.get("course") || "all"}
               courses={courseList}
               onNew={(mode, courseId) => setCreate({ mode, courseId })}
+              onCourseChange={selectCourse("library")}
               version={version}
               initialCourse={params.get("course") || ""}
               apiKeyConfigured={Boolean(settings.data?.api_key_configured)}

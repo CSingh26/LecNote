@@ -89,7 +89,7 @@ try {
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
     if (width < 800)
-      await page.waitForFunction(() => document.querySelector(".sidebar").getBoundingClientRect().right <= 0);
+      await page.locator(".course-rail").waitFor({ state: "hidden" });
     await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     assert.equal(await page.locator(".lecture-header").evaluate((element) =>

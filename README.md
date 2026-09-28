@@ -1,8 +1,53 @@
 # LecNote
 
+## v1.1.0: Reading workspace
+
+Version `1.1.0` brings the approved **Course Editions** design to `main`.
+The **Reading workspace** layout keeps a course rail and compact
+lecture index beside the selected lecture's player, notes, and materials, with
+a yellow-and-ink visual identity. This is a compatible feature release; no
+database migration is required. Existing recordings, notes, materials,
+transcript edits, and settings remain in your existing library.
+
+Implementation status:
+
+- Done: reusable course materials panel (per-course list, search, safe source
+  preview, Open original, and Manage materials through the existing resource
+  dialog) and a Materials page with an explicit course selector.
+- Done: Course Editions shell — top navigation with a persistent cherry
+  Record lecture action, a solar-yellow course rail (every course reachable,
+  explicit All courses, drawer on narrow screens), an Add lecture menu
+  (upload recording, import transcript), contextual Merge recordings, and the
+  Reading workspace: a compact lecture index beside the open lecture with notes
+  and course materials side by side. Lecture links stay linkable; closing the
+  reader returns to the lecture's course library and honors unsaved edits.
+- Done: the reader groups storage, preparation, and processing controls in one
+  contextual band above the view tabs (Notes, Transcript, Materials, Review,
+  Relevance); the Materials tab separates lecture attachments from reusable
+  course materials. Record, Courses, Jobs, Search, and Settings use the same
+  type, rules, and controls, without decorative eyebrows. Existing
+  preparation, dirty-state, busy, and explicit-generation checks are unchanged.
+- Done: purposeful motion (160ms markers, 180ms reveals, none under reduced
+  motion) and narrow layouts: a labelled course drawer, full-width reading with
+  a Lectures return link, and a course materials disclosure. Design tokens and
+  rules are documented in [DESIGN.md](DESIGN.md).
+- Release review corrected the Materials-page preview layout and added desktop
+  and mobile regression checks. Recording recovery tools from `main` are retained.
+  Real-device capture and paid-AI behaviour were not re-tested for this release.
+
+See [the v1.1.0 release notes](docs/releases/v1.1.0.md) and
+[GitHub release](https://github.com/CSingh26/LecNote/releases/tag/v1.1.0).
+Finish and save active recordings and back up your library before updating.
+
+Visual measurements were taken from the approved comp and its generation
+record directly; the Impeccable `comp-spec`/`font-match` tooling was not
+available in this environment. Headings use a system condensed stack
+(Avenir Next Condensed, Roboto Condensed, Arial Narrow) rather than a
+downloaded font, keeping the app fully local.
+
 ## v1.0.2 maintenance update
 
-Version `1.0.2` is a compatible patch update available on `main` and tag `v1.0.2`.
+Version `1.0.2` is the previous compatible patch update, retained at tag `v1.0.2`.
 It fixes recording merges, final transcription, API/CLI errors, and transcript-edit messaging, and
 refreshes the study workspace with compact, responsive controls.
 
@@ -53,8 +98,7 @@ Class resources and lecture materials accept all file types, including code file
 up to 30 MiB each. Text/code, PDF, supported images, Word (`.docx`), PowerPoint
 (`.pptx`), and Excel (`.xlsx`) have local text extraction. Other files remain
 downloadable even when they cannot provide text for note generation. Files and
-macros are never executed. These additions are included in the v1.0.2 source;
-build this branch to include them.
+macros are never executed. These additions are included in v1.0.2 and later.
 
 ## Core features
 
@@ -129,12 +173,12 @@ The image bundles the Web UI, Python server, FFmpeg, Tesseract OCR, and the
 local Whisper runtime. It stores the library and downloaded model weights in
 `/data`. To use the published image, bind the web port to your own computer and
 keep `/data` in a persistent volume. The tagged release workflow publishes the
-`1.0.2` image after its checks pass; check the
+`1.1.0` image after its checks pass; check the
 [release workflow](https://github.com/CSingh26/LecNote/actions/workflows/release.yml)
 has completed before pulling a newly announced version:
 
 ```sh
-docker run --rm -p 127.0.0.1:8765:8765 -v lecnote-data:/data ghcr.io/csingh26/lecnote:1.0.2
+docker run --rm -p 127.0.0.1:8765:8765 -v lecnote-data:/data ghcr.io/csingh26/lecnote:1.1.0
 ```
 
 Open [LecNote](http://127.0.0.1:8765) and add your OpenAI API key in Settings
@@ -192,7 +236,7 @@ server before running processing through the CLI against the same library.
 
 ### Record a lecture
 
-Choose **Record lecture** in the Library, or **New lecture > Record live**.
+Choose **Record lecture** in the header from any page.
 Enter the title, select **Microphone**, **Lecture audio**, or **Both**, then
 press **Start recording**. Stop & save preserves the WAV recording and queues
 local transcription; an OpenAI key is needed only for the generated notes.
@@ -298,6 +342,8 @@ checks were performed for v1.0.0. v1.0.1 adds synthetic FFmpeg and isolated API/
 checks, without accessing an active recording or physical microphone. v1.0.2
 adds merge/materials browser coverage and a real local Whisper full-pass/cache
 smoke check using synthetic speech.
+v1.1.0 adds reading-workspace, materials-preview, keyboard, reduced-motion,
+and desktop/mobile layout coverage, retaining the real-API smoke checks.
 An actual OpenAI generation run still needs a user
 API key; no live OpenAI call is claimed as tested.
 See [the verification record](docs/verification.md) for test scope and browser checks.

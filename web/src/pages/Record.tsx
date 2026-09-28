@@ -97,7 +97,7 @@ export function Record({
   const active = recorder.protected;
   return (
     <>
-      <PageHeader eyebrow="Live capture" title="Record" />
+      <PageHeader title="Record" />
       <div className="record-layout">
         <section className="record-console">
           <div className="split">

@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "name": "Course Editions",
+  "layout": "Reading workspace",
+  "approved_comp": ".impeccable/mocks/course-editions-reader.png",
+  "source": "web/src/styles.css :root tokens",
+  "documented_by": "Hand-written from the shipped stylesheet; the Impeccable documenter was not available in this environment.",
+  "color": {
+    "ink": "#22221f",
+    "text": "#33322d",
+    "muted": "#5b5950",
+    "faint": "#6f6c62",
+    "line": "#e4e1d7",
+    "line-strong": "#c8c4b6",
+    "bg": "#fcfbf7",
+    "surface": "#ffffff",
+    "surface-2": "#f6f4ed",
+    "solar": "#f1de54",
+    "solar-pale": "#fcf4c6",
+    "solar-ink": "#3f3a16",
+    "cherry": "#c8434b",
+    "cherry-dark": "#a8333b",
+    "cherry-soft": "#fbeced",
+    "mineral": "#476e9b",
+    "mineral-soft": "#e9eff6",
+    "ready": "#2d6a45",
+    "ready-soft": "#e4f1e8",
+    "queued": "#86570a",
+    "queued-soft": "#fbf1d8"
+  },
+  "type": {
+    "body": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    "display": "'Avenir Next Condensed', 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', sans-serif (font-stretch: condensed)",
+    "mono": "ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
+    "root_size_px": 15,
+    "h1_px": 32,
+    "h1_narrow_px": 26,
+    "h2_px": 21,
+    "index_heading_px": 26,
+    "letter_spacing": 0
+  },
+  "shape": { "radius_sm_px": 6, "radius_px": 8, "row_marker_px": 3, "shadows": "dialogs only" },
+  "layout_px": {
+    "header_height": 64,
+    "header_height_narrow": 112,
+    "course_rail": 200,
+    "lecture_index": "clamp(300px, 26vw, 420px)",
+    "materials_column": "minmax(250px, 320px)"
+  },
+  "motion": {
+    "ease": "cubic-bezier(0.2, 0.7, 0.2, 1)",
+    "marker_ms": 160,
+    "reveal_ms": 180,
+    "reduced_motion": "all animation and transition removed; content visible by default"
+  },
+  "breakpoints_px": {
+    "utility_labels_hidden": 1320,
+    "materials_below_notes_and_disclosure": 1180,
+    "index_hidden_reader_full_width": 1100,
+    "rail_drawer_two_row_header": 900,
+    "phone": 640
+  }
+}

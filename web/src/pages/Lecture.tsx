@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Download,
+  X,
   FileAudio,
   FileText,
   Pencil,
@@ -39,6 +40,7 @@ import { Materials } from "../components/Materials";
 import { Preparation } from "../components/Preparation";
 import { RelevanceView } from "../components/RelevanceView";
 import { StorageStatus } from "../components/StorageStatus";
+import { CourseMaterialsPanel } from "../components/CourseMaterialsPanel";
 
 export function Lecture({
   id,
@@ -48,6 +50,7 @@ export function Lecture({
   onDirty,
   dirty,
   seekTo,
+  onCourseResolved,
 }: {
   id: string;
   courses: Course[];
@@ -56,6 +59,7 @@ export function Lecture({
   onDirty: (dirty: boolean) => void;
   dirty: boolean;
   seekTo: number | null;
+  onCourseResolved?: (courseId: string | null) => void;
 }) {
   const resource = useResource<LectureData>(lecturePath(id), 2500);
   const lecture = resource.data;
@@ -81,6 +85,14 @@ export function Lecture({
     setPreparationSaving(false);
     setContentDirty(false);
   }, [id]);
+  const loadedId = lecture?.id;
+  const loadedCourse = lecture?.course_id ?? null;
+  useEffect(() => {
+    if (loadedId === id) onCourseResolved?.(loadedCourse);
+  }, [id, loadedId, loadedCourse, onCourseResolved]);
+  const libraryHref = `#/library${
+    lecture?.course_id ? `?course=${encodeURIComponent(lecture.course_id)}` : ""
+  }`;
   const refresh = () => {
     resource.refresh();
     onChanged();
@@ -149,7 +161,7 @@ export function Lecture({
       await api(lecturePath(id), json("DELETE"));
       onDirty(false);
       onChanged();
-      window.location.hash = "/library";
+      window.location.hash = libraryHref.slice(1);
     } catch (error) {
       setError(message(error));
     } finally {
@@ -199,7 +211,7 @@ export function Lecture({
     return (
       <>
         <a className="text-link" href="#/library">
-          <ArrowLeft size={16} />
+          <ArrowLeft size={16} aria-hidden="true" />
           Library
         </a>
         <ErrorNotice error={resource.error} retry={resource.refresh} />
@@ -211,9 +223,9 @@ export function Lecture({
   const tabs = [
     "Notes",
     "Transcript",
-    "Relevance",
     "Materials",
     "Review",
+    "Relevance",
   ].filter(
     (name) =>
       !["Transcript", "Relevance"].includes(name) ||
@@ -221,38 +233,38 @@ export function Lecture({
   );
   const visibleTab = tabs.includes(tab) ? tab : "Notes";
   const hasMedia = Boolean(lecture.media_type);
+  const course = courses.find((item) => item.id === lecture.course_id);
   const video =
     lecture.media_type?.startsWith("video") ||
     /\.(mp4|webm|mov)$/i.test(lecture.source_name || "");
   return (
     <>
-      <a className="back-link" href="#/library">
-        <ArrowLeft size={16} />
-        Library
+      <a className="text-link reader-back" href={libraryHref}>
+        <ArrowLeft size={16} aria-hidden="true" />
+        Lectures
       </a>
-      <div className="lecture-header">
-        <div>
-          <div className="eyebrow">
-            {courses.find((c) => c.id === lecture.course_id)?.name ||
-              "UNASSIGNED"}
-          </div>
+      <header className="lecture-header">
+        <div className="lecture-heading">
           <h1>{lecture.title}</h1>
           <div className="lecture-meta">
             <Status status={lecture.status} />
             <span>{date(lecture.created_at)}</span>
             {lecture.duration > 0 && <span>{time(lecture.duration)}</span>}
+            <label className="lecture-course">
+              <span className="sr-only">Course</span>
+              <CourseSelect
+                courses={courses}
+                value={lecture.course_id || ""}
+                onChange={(value) => void assignCourse(value)}
+                disabled={
+                  active ||
+                  Boolean(busy) ||
+                  preparationDirty ||
+                  preparationSaving
+                }
+              />
+            </label>
           </div>
-          <label className="field lecture-course">
-            <span>Course</span>
-            <CourseSelect
-              courses={courses}
-              value={lecture.course_id || ""}
-              onChange={(value) => void assignCourse(value)}
-              disabled={
-                active || Boolean(busy) || preparationDirty || preparationSaving
-              }
-            />
-          </label>
         </div>
         <div className="actions">
           <IconButton
@@ -291,8 +303,16 @@ export function Lecture({
               setRemove(true);
             }}
           />
+          <a
+            className="icon-button close-reader"
+            href={libraryHref}
+            aria-label="Close lecture"
+            title="Close lecture"
+          >
+            <X size={20} aria-hidden="true" />
+          </a>
         </div>
-      </div>
+      </header>
       <ErrorNotice
         error={error || resource.error}
         retry={resource.error ? resource.refresh : undefined}
@@ -355,84 +375,89 @@ export function Lecture({
           <span>Imported transcript · No source recording</span>
         </div>
       )}
-      <StorageStatus lecture={lecture} />
-      <Preparation
-        key={lecture.id}
-        lecture={lecture}
-        disabled={active || Boolean(busy) || edit}
-        onSaved={refresh}
-        onDirty={setPreparationDirty}
-        onReady={setPreparationReady}
-        onBusy={setPreparationSaving}
-      />
-      <div className="processing-bar">
-        {active && lecture.job ? (
-          <JobProgress job={lecture.job} />
-        ) : (
-          <span className="muted small">
-            {lecture.notes
-              ? "Notes generated from your lecture."
-              : lecture.status === "recording"
-                ? "Live recording in progress."
-                : "Ready to turn this lecture into study notes."}
-          </span>
-        )}
-        <div className="actions">
-          {active && lecture.status !== "recording" ? (
-            <Button icon={Square} disabled={Boolean(busy)} onClick={cancel}>
-              Cancel processing
-            </Button>
-          ) : lecture.status === "recording" ? (
-            <a className="button" href="#/record">
-              Open recorder
-            </a>
+      <section
+        className="reader-context"
+        aria-label="Preparation and processing"
+      >
+        <StorageStatus lecture={lecture} />
+        <Preparation
+          key={lecture.id}
+          lecture={lecture}
+          disabled={active || Boolean(busy) || edit}
+          onSaved={refresh}
+          onDirty={setPreparationDirty}
+          onReady={setPreparationReady}
+          onBusy={setPreparationSaving}
+        />
+        <div className="processing-bar">
+          {active && lecture.job ? (
+            <JobProgress job={lecture.job} />
           ) : (
-            <>
-              <label className="check small">
-                <input
-                  type="checkbox"
-                  checked={diarize ?? settings?.diarization ?? false}
-                  onChange={(e) => setDiarize(e.target.checked)}
-                />
-                Detect speakers
-              </label>
-              {hasMedia && (
-                <Button
-                  icon={FileAudio}
-                  disabled={Boolean(busy) || preparationSaving}
-                  onClick={() => void process(false, true)}
-                >
-                  Transcribe locally
-                </Button>
-              )}
-              <Button
-                variant="primary"
-                icon={lecture.notes ? RotateCcw : Play}
-                disabled={
-                  Boolean(busy) ||
-                  dirty ||
-                  preparationDirty ||
-                  contentDirty ||
-                  !preparationReady
-                }
-                onClick={() =>
-                  lecture.notes ? setRegenerate(true) : void process(false)
-                }
-              >
-                {busy === "process"
-                  ? "Queuing…"
-                  : lecture.notes
-                    ? "Regenerate notes"
-                    : ["failed", "cancelled", "interrupted"].includes(
-                          lecture.status,
-                        )
-                      ? "Retry processing"
-                      : "Generate notes"}
-              </Button>
-            </>
+            <span className="muted small">
+              {lecture.notes
+                ? "Notes generated from your lecture."
+                : lecture.status === "recording"
+                  ? "Live recording in progress."
+                  : "Ready to turn this lecture into study notes."}
+            </span>
           )}
+          <div className="actions">
+            {active && lecture.status !== "recording" ? (
+              <Button icon={Square} disabled={Boolean(busy)} onClick={cancel}>
+                Cancel processing
+              </Button>
+            ) : lecture.status === "recording" ? (
+              <a className="button" href="#/record">
+                Open recorder
+              </a>
+            ) : (
+              <>
+                <label className="check small">
+                  <input
+                    type="checkbox"
+                    checked={diarize ?? settings?.diarization ?? false}
+                    onChange={(e) => setDiarize(e.target.checked)}
+                  />
+                  Detect speakers
+                </label>
+                {hasMedia && (
+                  <Button
+                    icon={FileAudio}
+                    disabled={Boolean(busy) || preparationSaving}
+                    onClick={() => void process(false, true)}
+                  >
+                    Transcribe locally
+                  </Button>
+                )}
+                <Button
+                  variant="primary"
+                  icon={lecture.notes ? RotateCcw : Play}
+                  disabled={
+                    Boolean(busy) ||
+                    dirty ||
+                    preparationDirty ||
+                    contentDirty ||
+                    !preparationReady
+                  }
+                  onClick={() =>
+                    lecture.notes ? setRegenerate(true) : void process(false)
+                  }
+                >
+                  {busy === "process"
+                    ? "Queuing…"
+                    : lecture.notes
+                      ? "Regenerate notes"
+                      : ["failed", "cancelled", "interrupted"].includes(
+                            lecture.status,
+                          )
+                        ? "Retry processing"
+                        : "Generate notes"}
+                </Button>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      </section>
       <div className="tabs" role="tablist" aria-label="Lecture views">
         {tabs.map((name, index) => (
           <button
@@ -483,13 +508,25 @@ export function Lecture({
         tabIndex={0}
       >
         {visibleTab === "Notes" ? (
-          <NotesView
-            lecture={lecture}
-            prices={settings}
-            onSeek={seek}
-            onSaved={refresh}
-            onDirty={setContentDirty}
-          />
+          <div className="reader-sheet">
+            <NotesView
+              lecture={lecture}
+              prices={settings}
+              onSeek={seek}
+              onSaved={refresh}
+              onDirty={setContentDirty}
+            />
+            {course ? (
+              <CourseMaterialsPanel course={course} />
+            ) : (
+              <aside className="course-materials course-materials-rail">
+                <h3>Course materials</h3>
+                <p className="muted small">
+                  Assign this lecture to a course to open its materials here.
+                </p>
+              </aside>
+            )}
+          </div>
         ) : visibleTab === "Transcript" ? (
           <TranscriptView
             lecture={lecture}
@@ -498,7 +535,10 @@ export function Lecture({
             onDirty={setContentDirty}
           />
         ) : visibleTab === "Materials" ? (
-          <Materials lecture={lecture} onSaved={refresh} />
+          <div className="materials-tab">
+            <Materials lecture={lecture} onSaved={refresh} />
+            {course && <CourseMaterialsPanel course={course} layout="page" />}
+          </div>
         ) : visibleTab === "Relevance" ? (
           <RelevanceView lecture={lecture} onSaved={refresh} onSeek={seek} />
         ) : (

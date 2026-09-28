@@ -1,0 +1,10 @@
+{
+  "seed": "387ada07",
+  "optionId": "challenger-zine",
+  "catalogId": "rw-copy-shop-zine-interior",
+  "label": "Course Editions",
+  "buildPath": "comp",
+  "source": "User selection on comparison page",
+  "compositionApproved": true,
+  "composition": "editions-reader"
+}

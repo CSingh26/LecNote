@@ -1,0 +1,12 @@
+{
+  "optionId": "editions-reader",
+  "label": "Reading workspace",
+  "comp": ".impeccable/mocks/course-editions-reader.png",
+  "approved": true,
+  "source": "User explicitly changed the later layout comparison to the third visual in chat on 2026-09-28",
+  "supersedes": "editions-original",
+  "adjustments": [
+    "Smaller practical headings",
+    "Real library data instead of generated example file details"
+  ]
+}
