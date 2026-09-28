@@ -182,6 +182,19 @@ def test_media_head_exposes_playback_headers_without_body(client):
     assert client.head("/api/lectures/missing/media").status_code == 404
 
 
+def test_media_openapi_has_distinct_get_and_head_operations(client):
+    schema = client.get("/openapi.json").json()
+    media = schema["paths"]["/api/lectures/{lecture_id}/media"]
+    assert media["get"]["operationId"] != media["head"]["operationId"]
+    operation_ids = [
+        operation["operationId"]
+        for path in schema["paths"].values()
+        for operation in path.values()
+        if isinstance(operation, dict) and "operationId" in operation
+    ]
+    assert len(operation_ids) == len(set(operation_ids))
+
+
 def test_queue_deduplicates_and_cancel_preserves_transcript(client):
     lecture = imported(client).json()
     client.patch(f"/api/lectures/{lecture['id']}", json={"context": "Energy and momentum"})

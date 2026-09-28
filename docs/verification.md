@@ -7,7 +7,7 @@ temporary libraries. Existing servers, original source files, and the active
 library were not changed or restarted. The original local findings reports are
 annotated separately; no private library data or credentials are committed.
 
-- Python: 462 tests passed; frontend: 96 passed; Chromium: 13 passed.
+- Python: 463 tests passed; frontend: 96 passed; Chromium: 13 passed.
 - Ruff, TypeScript/production build, and Git whitespace checks passed.
 - Regression coverage includes non-finite JSON requests, actionable CLI errors,
   HEAD/range playback, glossary filtering, malformed routes, final full-pass
