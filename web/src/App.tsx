@@ -30,7 +30,9 @@ import { Jobs } from "./pages/Jobs";
 import { Lecture } from "./pages/Lecture";
 import { MaterialsPage } from "./pages/Materials";
 import { LectureForm } from "./components/LectureForm";
+import { ThemeControl } from "./components/ThemeControl";
 import { Empty, Loading } from "./components/ui";
+import { FieldGuideMark } from "./components/FieldGuideMark";
 
 const destinations = [
   { path: "library", label: "Library", icon: LibraryIcon },
@@ -186,7 +188,8 @@ export default function App() {
             </button>
           </span>
           <a className="brand" href="#/library">
-            LecNote
+            <FieldGuideMark />
+            <span>LecNote</span>
           </a>
         </div>
         <nav className="primary-nav" aria-label="Main navigation">
@@ -287,6 +290,7 @@ export default function App() {
           Manage courses
           <ChevronRight size={14} aria-hidden="true" />
         </a>
+        <ThemeControl />
         <div className="rail-footer">
           <i className={online ? "online-dot" : "offline-dot"} />
           <span>

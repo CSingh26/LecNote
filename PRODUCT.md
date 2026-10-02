@@ -56,16 +56,19 @@ study workflow rather than disconnected upload and reading tools.
 
 ## Brand Commitments
 
-Keep the name LecNote and the product's lecture-study purpose. The user wants a
-recognizable personality and animation throughout the experience. The user selected
-Course Editions: solar-yellow course navigation, near-white study surfaces, dark
-ink, cherry recording actions, mineral-blue source cues, clean condensed headings,
-and typed labels inspired by student publications. The approved Reading workspace
-(third layout) keeps courses at the left, a compact lecture index beside them,
-and the selected lecture's player, notes, and course materials open together.
-This supersedes the initial Side-by-side edition selection. Practical smaller
-headings and real library data replace mockup
-artifacts. The publication identity must remain readable and task-focused.
+Keep the name LecNote and the product's lecture-study purpose. The current
+**Academic Field Guide** direction is a calm, approachable study journal:
+paper, ink, honey, and sage; expressive serif headings with clean sans-serif
+labels; a small bee; simple rows; and restrained borders and shadows.
+Accessibility, honest feedback, and light/dark themes are part of the identity.
+Use the locally bundled Newsreader font for headings and a system sans-serif
+stack for labels and body text. Keep courses, the lecture index, notes, and
+source materials easy to navigate, with purposeful motion that respects reduced
+motion. Real library content and accurate task states supply the substance.
+This direction supersedes Course Editions and its approved comp, which remain
+historical records of v1.1.0. Academic Field Guide is currently an unreleased
+milestone on `codex/academic-field-guide`, pending integration; it is not a
+newly deployed or published release.
 
 ## Evidence on Hand
 

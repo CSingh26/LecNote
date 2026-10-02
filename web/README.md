@@ -3,6 +3,18 @@
 React/TypeScript workspace for the local LecNote API. All product data comes
 from `/api`; the application has no seeded lectures or simulated controls.
 
+The current `codex/academic-field-guide` milestone is **unreleased and pending
+integration**. Academic Field Guide presents the existing workflows as a calm,
+approachable study journal: paper and ink, honey actions, sage selection,
+Newsreader serif headings, clean system sans-serif labels, simple rows, and a
+small geometric bee. See [the design contract](../DESIGN.md) for current tokens
+and layout rules. The v1.1.0 release uses the previous Course Editions design.
+
+**Color theme** in the course rail (or its mobile drawer) offers System, Light,
+and Dark. `lecnote-theme` in browser local storage saves the preference; System
+tracks color-scheme changes. A small head script applies the initial theme before
+React renders. Blocked storage leaves the control usable for the current session.
+
 ## Development
 
 Use Node.js 20.19+ (or 22.12+) and npm:
@@ -26,7 +38,11 @@ npm run build
 The production bundle is written to `web/dist/`, which the Python backend
 serves. The recorder worklet is a hashed `/assets/` file, so it uses the same
 production static-file mount. All Markdown, math fonts, and diagrams are
-bundled locally; no font or rendering CDN is needed.
+bundled locally; no font or rendering CDN is needed. The variable Newsreader
+font is bundled at `src/assets/fonts/Newsreader-variable.ttf`, with its SIL Open
+Font License in `src/assets/fonts/OFL-Newsreader.txt`. The bee mark and favicon are
+local SVG assets. Vite emits the font and favicon under the hashed `/assets/`
+mount served by the Python backend.
 
 ## Implemented Workflows
 
@@ -72,22 +88,40 @@ Vitest and Testing Library cover timestamp parsing, JSON validation, PCM WAV
 encoding, serial upload recovery, worklet downmixing/final partial chunks,
 empty states/dialogs, draft uploads, courses, settings secret omission,
 transcript/note edits, local transcription, diarization defaults, file-read
-title races, safe Markdown, and saved-note cost estimates.
+title races, safe Markdown, and saved-note cost estimates. Theme coverage checks
+persistence, system preference changes, invalid or unavailable storage, and the
+initial page theme. The Academic Field Guide milestone passes the production
+build, all 132 unit tests, and all 39 browser checks. The 36 app browser checks
+also passed against the production preview; three development-only component
+fixture checks require the Vite test server.
 
-With Vite running on port 5173:
+Run the browser suite directly; it starts and stops an isolated Vite server on
+`127.0.0.1:4175` automatically:
 
 ```sh
 npm run test:browser
 ```
 
-Set `LECNOTE_TEST_URL` to check a built app served by the Python backend instead.
+No existing server on port 5173 is needed. The test server uses a strict port
+and does not reuse an existing process. Set `LECNOTE_TEST_URL` only to target a
+separate test server intentionally, such as a built app served by Python.
+When checking a production build, exclude the development-only component fixture
+page (it is intentionally absent from production):
+
+```sh
+LECNOTE_TEST_URL=http://127.0.0.1:4187 npm run test:browser -- --grep-invert "merge, relevance and storage"
+```
 
 Playwright uses an installed Chromium browser (install it with
 `npx playwright install chromium` if necessary). These frontend browser tests
 use explicit test API fixtures and Chromium's simulated microphone. They cover
 native upload submission, desktop/mobile layouts, keyboard focus, microphone
 consent timing, navigation during recording, exact chunk offsets, and finish
-ordering. Screenshots go to ignored `web/test-results/`.
+ordering. Theme-specific checks cover waveform repainting, Mermaid redrawing,
+and plot styling without changing lecture data. Screenshots go to ignored
+`web/test-results/`; selected Field Guide review evidence belongs in
+`.impeccable/review/field-guide/`. Older images directly under
+`.impeccable/review/` show the previous design.
 
 Real backend/inference integration is verified separately. The frontend suite
 does not claim a live OpenAI call, physical microphone verification, or testing

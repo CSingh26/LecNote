@@ -39,6 +39,18 @@ function Mermaid({ source }: { source: string }) {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   const [svg, setSvg] = useState("");
   const [error, setError] = useState("");
+  const [theme, setTheme] = useState(
+    () => document.documentElement.dataset.theme,
+  );
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => setTheme(root.dataset.theme));
+    observer.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     let cancelled = false;
     setSvg("");
@@ -47,10 +59,31 @@ function Mermaid({ source }: { source: string }) {
       if (cancelled) return;
       try {
         const { default: mermaid } = await import("mermaid");
+        if (cancelled) return;
+        const styles = getComputedStyle(document.documentElement);
+        const color = (token: string, fallback: string) =>
+          styles.getPropertyValue(token).trim() || fallback;
+        const dark = theme === "dark";
+        const ink = color("--ink", dark ? "#f2eee2" : "#282b24");
+        const surface = color("--surface", dark ? "#252921" : "#fffdf7");
+        const secondary = color("--surface-2", dark ? "#30362b" : "#f3f0e6");
+        const primary = color("--primary", dark ? "#aac09e" : "#526850");
         mermaid.initialize({
           startOnLoad: false,
           securityLevel: "strict",
-          theme: "neutral",
+          theme: "base",
+          themeVariables: {
+            darkMode: dark,
+            background: surface,
+            primaryColor: secondary,
+            primaryTextColor: ink,
+            primaryBorderColor: primary,
+            secondaryColor: surface,
+            tertiaryColor: secondary,
+            textColor: ink,
+            lineColor: color("--muted", dark ? "#b5b6a8" : "#61655c"),
+            edgeLabelBackground: surface,
+          },
           fontFamily: "system-ui",
           htmlLabels: false,
           flowchart: { htmlLabels: false },
@@ -73,7 +106,7 @@ function Mermaid({ source }: { source: string }) {
     return () => {
       cancelled = true;
     };
-  }, [id, source]);
+  }, [id, source, theme]);
   return error ? (
     <div className="notice">
       {error}
@@ -140,11 +173,11 @@ export function NoteVisual({
           <line x1="50" y1="20" x2="50" y2="230" stroke="currentColor" />
           <polyline
             fill="none"
-            stroke="#6d4aff"
+            stroke="var(--primary)"
             strokeWidth="2.5"
             points={points}
           />
-          <text x="320" y="272" textAnchor="middle">
+          <text x="320" y="272" textAnchor="middle" fill="currentColor">
             {visual.x_label}
           </text>
           <text
@@ -152,6 +185,7 @@ export function NoteVisual({
             y="130"
             textAnchor="middle"
             transform="rotate(-90 16 130)"
+            fill="currentColor"
           >
             {visual.y_label}
           </text>

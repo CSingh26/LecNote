@@ -31,6 +31,7 @@ function Waveform({ signal }: { signal: number[] }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const draw = () => {
+      const styles = getComputedStyle(canvas);
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
       const ratio = window.devicePixelRatio || 1;
@@ -38,14 +39,15 @@ function Waveform({ signal }: { signal: number[] }) {
       canvas.height = height * ratio;
       ctx.scale(ratio, ratio);
       ctx.clearRect(0, 0, width, height);
-      ctx.strokeStyle = "#dbe5e8";
+      ctx.strokeStyle = styles.getPropertyValue("--line").trim() || "#dedbd0";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, height / 2);
       ctx.lineTo(width, height / 2);
       ctx.stroke();
       if (!signal.length) return;
-      ctx.strokeStyle = "#087b7d";
+      ctx.strokeStyle =
+        styles.getPropertyValue("--primary").trim() || "#526850";
       ctx.lineWidth = 2.5;
       ctx.lineJoin = "round";
       ctx.beginPath();
@@ -60,7 +62,15 @@ function Waveform({ signal }: { signal: number[] }) {
     draw();
     const observer = new ResizeObserver(draw);
     observer.observe(canvas);
-    return () => observer.disconnect();
+    const themeObserver = new MutationObserver(draw);
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => {
+      observer.disconnect();
+      themeObserver.disconnect();
+    };
   }, [signal]);
   return (
     <canvas

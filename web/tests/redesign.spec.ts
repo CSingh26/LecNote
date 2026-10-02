@@ -188,7 +188,7 @@ for (const width of [390, 320]) {
   });
 }
 
-test("remaining screens share the Course Editions system", async ({ page }) => {
+test("remaining screens share the Academic Field Guide system", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await installDemoApi(page);

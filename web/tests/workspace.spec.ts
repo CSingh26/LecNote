@@ -248,6 +248,18 @@ for (const stopMode of [
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
+    await page.setViewportSize({ width: 320, height: 740 });
+    await expect(page.locator(".record-elapsed")).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      "The active recording and its elapsed time fit the smallest supported phone",
+    ).toBe(true);
+    await page.screenshot({
+      path: testInfo.outputPath("both-recording-320.png"),
+      fullPage: true,
+    });
     if (stopMode === "ended" || stopMode === "paused-ended") {
       await page.evaluate(() => {
         const track = (

@@ -111,6 +111,13 @@ export function Library({
           {current?.code && (
             <span className="library-code">{current.code}</span>
           )}
+          {!index && (
+            <p className="library-intro">
+              {current
+                ? "Your lectures, notes, and ideas. Ready when you are."
+                : "A little space for everything you’re learning."}
+            </p>
+          )}
         </div>
         <div className="actions">{addMenu}</div>
       </header>

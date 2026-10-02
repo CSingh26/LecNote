@@ -1,15 +1,52 @@
 # LecNote
 
-## v1.1.0: Reading workspace
+## Unreleased: Academic Field Guide
 
-Version `1.1.0` brings the approved **Course Editions** design to `main`.
+The `codex/academic-field-guide` branch introduces **Academic Field Guide**:
+a calm, approachable study journal with warm paper, dark ink, honey actions,
+and sage selections. Expressive serif headings, clean sans-serif labels, a
+small geometric bee, and simple lecture rows give the workspace a quieter
+identity. Borders and shadows stay restrained; clear focus, readable content,
+responsive layouts, reduced motion, and honest task feedback remain essential.
+
+This milestone is **unreleased and pending integration**. It has not created a
+new version tag, container release, or deployment. The v1.1.0 release described
+below retains the earlier Course Editions appearance.
+
+Implementation status:
+
+- Implemented: the shared palette, typography, spacing, controls, reading
+  workspace, course navigation, and bee mark across the existing app screens.
+- Implemented: **Color theme** in the course rail and mobile drawer, with
+  System, Light, and Dark choices. The choice is saved in this browser; System
+  follows its color preference. The initial theme applies before the app renders.
+- Implemented: locally bundled Newsreader headings, system sans-serif labels,
+  and theme-aware lecture diagrams, plots, and recording waveforms. The font
+  ships with its SIL Open Font License; no runtime font CDN is required.
+- Preserved: the current recording, import, preparation, merge, materials,
+  transcript editing, explicit note generation, review, export, and recovery
+  workflows. No library migration is required by this visual update.
+- Verified: production build, 132 frontend unit tests, and 39 Chromium browser
+  checks. Coverage includes theme persistence, system changes, unavailable
+  storage, contrast, initial rendering, recording continuity at 320px, and
+  theme changes in lecture visuals. Independent visual review approved the
+  light/dark library and reader at desktop and phone widths. Review captures
+  are under `.impeccable/review/field-guide/`; older images document the
+  previous design. Physical microphones and paid AI were not exercised.
+
+See [DESIGN.md](DESIGN.md) for the current direction, tokens, and layout rules,
+and [web/README.md](web/README.md) for frontend setup and verification.
+
+## v1.1.0: Reading workspace (released)
+
+Version `1.1.0` brought the **Course Editions** design to `main`.
 The **Reading workspace** layout keeps a course rail and compact
 lecture index beside the selected lecture's player, notes, and materials, with
 a yellow-and-ink visual identity. This is a compatible feature release; no
 database migration is required. Existing recordings, notes, materials,
 transcript edits, and settings remain in your existing library.
 
-Implementation status:
+Historical release status:
 
 - Done: reusable course materials panel (per-course list, search, safe source
   preview, Open original, and Manage materials through the existing resource
@@ -29,8 +66,7 @@ Implementation status:
   preparation, dirty-state, busy, and explicit-generation checks are unchanged.
 - Done: purposeful motion (160ms markers, 180ms reveals, none under reduced
   motion) and narrow layouts: a labelled course drawer, full-width reading with
-  a Lectures return link, and a course materials disclosure. Design tokens and
-  rules are documented in [DESIGN.md](DESIGN.md).
+  a Lectures return link, and a course materials disclosure.
 - Release review corrected the Materials-page preview layout and added desktop
   and mobile regression checks. Recording recovery tools from `main` are retained.
   Real-device capture and paid-AI behaviour were not re-tested for this release.
@@ -39,13 +75,13 @@ See [the v1.1.0 release notes](docs/releases/v1.1.0.md) and
 [GitHub release](https://github.com/CSingh26/LecNote/releases/tag/v1.1.0).
 Finish and save active recordings and back up your library before updating.
 
-Visual measurements were taken from the approved comp and its generation
-record directly; the Impeccable `comp-spec`/`font-match` tooling was not
-available in this environment. Headings use a system condensed stack
-(Avenir Next Condensed, Roboto Condensed, Arial Narrow) rather than a
-downloaded font, keeping the app fully local.
+For v1.1.0, visual measurements were taken from its approved comp and generation
+record; the Impeccable `comp-spec`/`font-match` tooling was unavailable. That
+release used a system condensed heading stack (Avenir Next Condensed, Roboto
+Condensed, Arial Narrow). Its comp is historical reference, not the authority
+for the current Academic Field Guide direction.
 
-### Follow-up on main (unreleased)
+### Earlier follow-up on main (unreleased)
 
 Notice, quotation, formula, and emphasis borders now use 1px rules. Dialogs use
 the shared 180ms reveal timing and easing, without overshoot. Reduced-motion

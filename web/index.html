@@ -3,7 +3,43 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#6d4aff" />
+    <script id="theme-bootstrap">
+      (() => {
+        let preference = "system";
+        try {
+          const saved = localStorage.getItem("lecnote-theme");
+          if (saved === "light" || saved === "dark") preference = saved;
+        } catch {
+          // The system preference still applies when storage is unavailable.
+        }
+        const theme =
+          preference === "system"
+            ? window.matchMedia?.("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light"
+            : preference;
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
+    <meta
+      name="theme-color"
+      content="#f8f7ef"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#20261d"
+      media="(prefers-color-scheme: dark)"
+    />
+    <link rel="icon" type="image/svg+xml" href="/src/assets/bee.svg" />
+    <link
+      rel="preload"
+      href="/src/assets/fonts/Newsreader-variable.ttf"
+      as="font"
+      type="font/ttf"
+      crossorigin
+    />
     <meta name="description" content="Your local lecture workspace." />
     <title>LecNote</title>
   </head>

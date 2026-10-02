@@ -39,7 +39,7 @@
 .relevance-filters button[aria-pressed="true"] {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--on-sage);
   box-shadow: none;
 }
 .relevance-filters button:focus-visible {
@@ -81,7 +81,7 @@
   font-weight: 600;
 }
 .relevance-off_topic .relevance-content p {
-  opacity: 0.6;
+  color: var(--muted);
 }
 .relevance-segment select {
   width: 100%;
