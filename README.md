@@ -27,12 +27,13 @@ Implementation status:
 - Preserved: the current recording, import, preparation, merge, materials,
   transcript editing, explicit note generation, review, export, and recovery
   workflows. No library migration is required by this visual update.
-- Verified: production build, 132 frontend unit tests, and 39 Chromium browser
+- Verified: production build, 132 frontend unit tests, and 40 Chromium browser
   checks. Coverage includes theme persistence, system changes, unavailable
   storage, contrast, initial rendering, recording continuity at 320px, and
-  theme changes in lecture visuals. Independent visual review approved the
-  light/dark library and reader at desktop and phone widths. Review captures
-  are under `.impeccable/review/field-guide/`; older images document the
+  theme changes in lecture visuals. Long inline and display equations scroll
+  within the notes without widening the page on phones. Independent visual
+  review approved the light/dark library and reader at desktop and phone widths.
+  Review captures are under `.impeccable/review/field-guide/`; older images document the
   previous design. Physical microphones and paid AI were not exercised.
 
 See [DESIGN.md](DESIGN.md) for the current direction, tokens, and layout rules,

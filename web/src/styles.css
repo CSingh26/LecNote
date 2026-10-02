@@ -1226,6 +1226,12 @@ progress::-moz-progress-bar {
   padding: 8px 10px;
   border: 1px solid var(--line);
 }
+.markdown .katex:not(.katex-display > .katex) {
+  display: inline-flex;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
 .markdown .katex-display {
   overflow-x: auto;
   overflow-y: hidden;

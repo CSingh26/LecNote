@@ -1,8 +1,75 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { installDemoApi } from "./fixtures/demo-library";
+import { installDemoApi, lectures } from "./fixtures/demo-library";
 
 const shots = "test-results/field-guide";
 type Theme = "light" | "dark";
+
+test("long inline and display formulas scroll within the reader on desktop and mobile", async ({
+  page,
+}) => {
+  const formula = String.raw`\frac{a_1 + a_2 + a_3 + a_4 + a_5 + a_6 + a_7 + a_8 + a_9 + a_{10} + a_{11} + a_{12} + a_{13} + a_{14} + a_{15} + a_{16} + a_{17} + a_{18} + a_{19} + a_{20}}{1 + x^2}`;
+  await installDemoApi(page);
+  await page.route("**/api/lectures/energy", (route) =>
+    route.fulfill({
+      json: {
+        ...lectures[0],
+        notes: {
+          ...lectures[0].notes,
+          overview: `Inline formula $${formula}$ stays available.\n\nShort formula $x^2$.\n\n$$\n${formula}\n$$`,
+        },
+      },
+    }),
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/#/lecture/energy");
+  const inline = page.locator("#overview .markdown p > .katex");
+  await expect(inline).toHaveCount(2);
+  await page.evaluate(() => document.fonts.ready);
+
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await noHorizontalOverflow(page);
+    for (const formula of [
+      inline.first(),
+      page.locator("#overview .katex-display"),
+    ]) {
+      const scroll = await formula.evaluate((element) => {
+        const content = element.querySelector(".katex-html")!;
+        element.scrollLeft = 0;
+        const before = content.getBoundingClientRect().right;
+        element.scrollLeft = element.scrollWidth;
+        const viewport = element.getBoundingClientRect();
+        const end = content.getBoundingClientRect();
+        return {
+          client: element.clientWidth,
+          total: element.scrollWidth,
+          offset: element.scrollLeft,
+          before,
+          after: end.right,
+          viewportRight: viewport.right,
+          contentTop: end.top,
+          contentBottom: end.bottom,
+          viewportTop: viewport.top,
+          viewportBottom: viewport.bottom,
+        };
+      });
+      if (width === 390) {
+        expect(scroll.total).toBeGreaterThan(scroll.client);
+        expect(scroll.offset).toBeGreaterThan(0);
+        expect(scroll.after).toBeLessThan(scroll.before);
+      }
+      expect(scroll.after).toBeLessThanOrEqual(scroll.viewportRight + 1);
+      expect(scroll.contentTop).toBeGreaterThanOrEqual(scroll.viewportTop - 1);
+      expect(scroll.contentBottom).toBeLessThanOrEqual(scroll.viewportBottom + 1);
+    }
+    expect(
+      await inline
+        .last()
+        .evaluate((element) => element.scrollWidth <= element.clientWidth),
+    ).toBe(true);
+    await noHorizontalOverflow(page);
+  }
+});
 
 async function themeSelect(page: Page) {
   const rail = page.getByRole("complementary", { name: "Course index" });
