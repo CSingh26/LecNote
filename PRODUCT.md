@@ -47,12 +47,14 @@ study workflow rather than disconnected upload and reading tools.
   into a real library or expose saved credentials.
 - Do not start paid AI generation or microphone/sharing capture without the
   existing explicit user actions.
-- Do not stop, restart, or modify existing running servers or active libraries.
-  Development and verification use a separate checkout, ports, and test data.
+- Development and verification use a separate checkout, ports, and test data.
+  Changes to running installations require explicit user authorization and
+  must preserve the existing library.
 - The implementation is React/TypeScript/Vite with a FastAPI backend. This is a
   frontend redesign, not a request to replace the backend or inference engine.
-- Commit and push verified milestones to the configured GitHub remote. A new
-  main-branch merge, version tag, or published release is a separate decision.
+- Commit and push verified milestones to the configured GitHub remote. Academic
+  Field Guide is integrated on `main`; a version tag or published release is a
+  separate decision.
 
 ## Brand Commitments
 
@@ -66,9 +68,9 @@ stack for labels and body text. Keep courses, the lecture index, notes, and
 source materials easy to navigate, with purposeful motion that respects reduced
 motion. Real library content and accurate task states supply the substance.
 This direction supersedes Course Editions and its approved comp, which remain
-historical records of v1.1.0. Academic Field Guide is currently an unreleased
-milestone on `codex/academic-field-guide`, pending integration; it is not a
-newly deployed or published release.
+historical records of v1.1.0. Academic Field Guide is available on `main` and
+remains unreleased, with no new version tag or published container image.
+Source integration does not confirm deployment to an existing installation.
 
 ## Evidence on Hand
 

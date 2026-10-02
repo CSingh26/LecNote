@@ -7,11 +7,11 @@ clean sans-serif labels. A small bee adds personality without competing with
 lecture content. Simple rows, generous reading space, restrained borders and
 shadows, accessibility, honest feedback, and light/dark themes guide the design.
 
-This is an **unreleased milestone on `codex/academic-field-guide`, pending
-integration**. The published v1.1.0 release uses Course Editions. Its approved
-comp and earlier review screenshots are historical evidence, not the current
-design authority. The current implementation lives in `web/src/styles.css`;
-`.impeccable/design.json` records its tokens and layout values.
+This milestone is **integrated on `main` and unreleased**, with no new version
+tag or published container image. The historical v1.1.0 release uses Course
+Editions. Its approved comp and earlier review screenshots are historical
+evidence, not the current design authority. The current implementation lives in
+`web/src/styles.css`; `.impeccable/design.json` records its tokens and layout values.
 
 ## Palette and themes
 

@@ -11,9 +11,9 @@ Mode: Operate. Scope: all existing app screens and shared controls. Preserve
 lecture capture, transcript correction, preparation, merge, generation, export,
 review, jobs, settings, and recovery behavior. PRODUCT.md owns product constraints.
 
-Status: unreleased milestone on `codex/academic-field-guide`, pending integration.
-Implementation is present; regression verification and visual review are in
-progress. No new release or deployment is implied.
+Status: integrated on `main` and unreleased, with no new version tag or published
+container image. Implementation, regression verification, and visual review are
+complete as recorded below. Source integration does not confirm deployment.
 
 ## Direction contract
 

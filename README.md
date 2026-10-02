@@ -2,15 +2,16 @@
 
 ## Unreleased: Academic Field Guide
 
-The `codex/academic-field-guide` branch introduces **Academic Field Guide**:
+The current `main` source includes **Academic Field Guide**:
 a calm, approachable study journal with warm paper, dark ink, honey actions,
 and sage selections. Expressive serif headings, clean sans-serif labels, a
 small geometric bee, and simple lecture rows give the workspace a quieter
 identity. Borders and shadows stay restrained; clear focus, readable content,
 responsive layouts, reduced motion, and honest task feedback remain essential.
 
-This milestone is **unreleased and pending integration**. It has not created a
-new version tag, container release, or deployment. The v1.1.0 release described
+This milestone is **integrated on `main` and unreleased**: it has no new version
+tag or published container image. Build from `main` to use it; updating the source
+does not restart an existing installation. The historical v1.1.0 release described
 below retains the earlier Course Editions appearance.
 
 Implementation status:

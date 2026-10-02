@@ -3,12 +3,13 @@
 React/TypeScript workspace for the local LecNote API. All product data comes
 from `/api`; the application has no seeded lectures or simulated controls.
 
-The current `codex/academic-field-guide` milestone is **unreleased and pending
-integration**. Academic Field Guide presents the existing workflows as a calm,
-approachable study journal: paper and ink, honey actions, sage selection,
+Academic Field Guide is **available on `main` and unreleased**, with no new
+version tag or published container image. It presents the existing workflows
+as a calm, approachable study journal: paper and ink, honey actions, sage selection,
 Newsreader serif headings, clean system sans-serif labels, simple rows, and a
 small geometric bee. See [the design contract](../DESIGN.md) for current tokens
-and layout rules. The v1.1.0 release uses the previous Course Editions design.
+and layout rules. The historical v1.1.0 release uses the previous Course Editions
+design.
 
 **Color theme** in the course rail (or its mobile drawer) offers System, Light,
 and Dark. `lecnote-theme` in browser local storage saves the preference; System

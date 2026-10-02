@@ -2,7 +2,7 @@
   "version": 1,
   "name": "Academic Field Guide",
   "layout": "Reading workspace",
-  "status": "Unreleased; pending integration on codex/academic-field-guide",
+  "status": "Integrated on main; unreleased, with no new version tag or published container image",
   "direction_source": "User-directed calm, approachable study journal; paper, ink, honey, sage, expressive serif headings, clean sans labels, a small bee, simple rows, restrained borders and shadows, accessibility, honest feedback, and light/dark themes.",
   "source": "web/src/styles.css :root, dark-theme overrides, and layout rules",
   "documented_by": "Documented from the verified implementation and independent visual review.",
